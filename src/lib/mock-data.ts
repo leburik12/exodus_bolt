@@ -80,7 +80,7 @@ export const members: Member[] = Array.from({ length: 28 }).map((_, i) => {
   const giftB = rand(giftTaxonomy, i * 2 + 7);
   return {
     id: `ZS-${pad(i + 1042)}`,
-    uuid: `m_${Math.random().toString(36).slice(2, 10)}${i}`,
+    uuid: `m_${(i * 2654435761 >>> 0).toString(36)}${i}`,
     name: `${fn} ${ln}`,
     email: `${fn.toLowerCase()}.${ln.toLowerCase()}@zetseat.org`,
     phone: `+251 9${(11000000 + i * 137).toString().slice(0, 8)}`,
