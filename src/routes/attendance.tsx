@@ -1,14 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Wifi, WifiOff, AlertTriangle, AlertOctagon, Activity, MapPin, Download, AlertCircle } from "lucide-react";
+import {
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  AlertOctagon,
+  Activity,
+  MapPin,
+  Download,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  X,
+  Minus,
+} from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, cellGroupCatalog } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
     meta: [
-      { title: "Temporal Telemetry // Zetseat" },
-      { name: "description", content: "High-density temporal commits interface for cell-network attendance." },
+      { title: "Attendance Telemetry · Zetseat" },
+      {
+        name: "description",
+        content: "High-density temporal attendance commits for cell networks.",
+      },
     ],
   }),
   component: AttendancePage,
@@ -19,13 +36,26 @@ type State = "PRESENT" | "ABSENT" | "EXCUSED" | null;
 const CELL_NODES = cellGroupCatalog.map((name, i) => ({
   name: `${name}-0${(i % 6) + 1}`,
   base: name,
-  vector: ["Bole · 22 Mazoria, Bldg C", "Megenagna · Friendship Plaza", "CMC · St. Michael Rd 14", "Kazanchis · UN Ave 7", "Sarbet · Atlas Junction", "Gerji · Imperial 04"][i],
-  leader: ["Yared Hailu", "Sara Tesfaye", "Dawit Mekonnen", "Hiwot Girma", "Eyob Alemu", "Tsion Bekele"][i],
-  leaderAvatar: ALL[i * 2].avatar,
+  vector: [
+    "Bole · 22 Mazoria, Bldg C",
+    "Megenagna · Friendship Plaza",
+    "CMC · St. Michael Rd 14",
+    "Kazanchis · UN Ave 7",
+    "Sarbet · Atlas Junction",
+    "Gerji · Imperial 04",
+  ][i],
+  leader: [
+    "Yared Hailu",
+    "Sara Tesfaye",
+    "Dawit Mekonnen",
+    "Hiwot Girma",
+    "Eyob Alemu",
+    "Tsion Bekele",
+  ][i],
+  leaderAvatar: ALL[(i * 2) % ALL.length].avatar,
   capacity: 16,
 }));
 
-// Chronological epochs — sequential gathering dates
 const EPOCHS = [
   { id: "2026-05-01", label: "May 01", full: "Friday · May 01, 2026" },
   { id: "2026-05-08", label: "May 08", full: "Friday · May 08, 2026" },
@@ -36,7 +66,6 @@ const EPOCHS = [
   { id: "2026-06-12", label: "Jun 12", full: "Friday · Jun 12, 2026" },
 ];
 
-// Deterministic synthesized historical state per member-epoch
 function synthState(memberId: string, epochId: string): NonNullable<State> {
   let h = 0;
   const s = memberId + "::" + epochId;
@@ -69,29 +98,33 @@ function AttendancePage() {
   const key = `${cellNode.name}::${epoch}`;
   const cellStates = states[key] || {};
 
-  const setState = useCallback((mid: string, s: State) => {
-    setStates((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [mid]: s } }));
-    if (!online) setPending((p) => p + 1);
-  }, [key, online]);
+  const setState = useCallback(
+    (mid: string, s: State) => {
+      setStates((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [mid]: s } }));
+      if (!online) setPending((p) => p + 1);
+    },
+    [key, online],
+  );
 
-  // Resolve effective state for a (member, epoch) — committed overrides synthesized
-  const effective = useCallback((mid: string, epId: string): NonNullable<State> => {
-    const k = `${cellNode.name}::${epId}`;
-    const committed = states[k]?.[mid];
-    return (committed ?? synthState(mid, epId)) as NonNullable<State>;
-  }, [cellNode.name, states]);
+  const effective = useCallback(
+    (mid: string, epId: string): NonNullable<State> => {
+      const k = `${cellNode.name}::${epId}`;
+      const committed = states[k]?.[mid];
+      return (committed ?? synthState(mid, epId)) as NonNullable<State>;
+    },
+    [cellNode.name, states],
+  );
 
-  // Range-windowed epochs (inclusive)
   const windowEpochs = useMemo(
     () => EPOCHS.filter((e) => e.id >= rangeStart && e.id <= rangeEnd),
     [rangeStart, rangeEnd],
   );
 
-  // Per-member analytics across the active window
   const memberAnalytics = useMemo(() => {
     const map: Record<string, { attn: number; absents: number }> = {};
     roster.forEach((m) => {
-      let p = 0, a = 0;
+      let p = 0,
+        a = 0;
       windowEpochs.forEach((ep) => {
         const s = effective(m.id, ep.id);
         if (s === "PRESENT") p++;
@@ -104,40 +137,61 @@ function AttendancePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster, windowEpochs, effective, recalcTick]);
 
-  // Cell-wide trend across the window
   const trend = useMemo(() => {
     return windowEpochs.map((ep) => {
       let p = 0;
-      roster.forEach((m) => { if (effective(m.id, ep.id) === "PRESENT") p++; });
-      return { label: ep.label, value: roster.length ? p / roster.length : 0, present: p, total: roster.length };
+      roster.forEach((m) => {
+        if (effective(m.id, ep.id) === "PRESENT") p++;
+      });
+      return {
+        label: ep.label,
+        value: roster.length ? p / roster.length : 0,
+        present: p,
+        total: roster.length,
+      };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster, windowEpochs, effective, recalcTick]);
 
-  // Active epoch tallies
-  const present = roster.filter((m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "PRESENT").length;
-  const absent = roster.filter((m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "ABSENT").length;
-  const excused = roster.filter((m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "EXCUSED").length;
+  const present = roster.filter(
+    (m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "PRESENT",
+  ).length;
+  const absent = roster.filter(
+    (m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "ABSENT",
+  ).length;
+  const excused = roster.filter(
+    (m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "EXCUSED",
+  ).length;
   const committed = present + absent + excused;
   const quorum = roster.length ? (present / roster.length) * 100 : 0;
 
-  // Hotkeys: ↑↓ navigate roster; ← → shift epoch; P/A/E commit
+  const shiftEpoch = useCallback((dir: -1 | 1) => {
+    setEpoch((cur) => {
+      const i = EPOCHS.findIndex((x) => x.id === cur);
+      const next = Math.max(0, Math.min(EPOCHS.length - 1, i + dir));
+      return EPOCHS[next].id;
+    });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (e.key === "ArrowDown") { e.preventDefault(); setFocusIdx((i) => Math.min(roster.length - 1, i + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setFocusIdx((i) => Math.max(0, i - 1)); }
-      else if (e.key === "ArrowLeft") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        const i = EPOCHS.findIndex((x) => x.id === epoch);
-        if (i > 0) setEpoch(EPOCHS[i - 1].id);
+        setFocusIdx((i) => Math.min(roster.length - 1, i + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(0, i - 1));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        shiftEpoch(-1);
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        const i = EPOCHS.findIndex((x) => x.id === epoch);
-        if (i < EPOCHS.length - 1) setEpoch(EPOCHS[i + 1].id);
+        shiftEpoch(1);
       } else if (["p", "a", "e", "P", "A", "E"].includes(e.key)) {
-        const m = roster[focusIdx]; if (!m) return;
+        const m = roster[focusIdx];
+        if (!m) return;
         const map: Record<string, State> = { p: "PRESENT", a: "ABSENT", e: "EXCUSED" };
         setState(m.id, map[e.key.toLowerCase()]);
         setFocusIdx((i) => Math.min(roster.length - 1, i + 1));
@@ -145,14 +199,13 @@ function AttendancePage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focusIdx, roster, setState, epoch]);
+  }, [focusIdx, roster, setState, shiftEpoch]);
 
   useEffect(() => {
     const el = gridRef.current?.querySelector<HTMLElement>(`[data-row="${focusIdx}"]`);
     el?.scrollIntoView({ block: "nearest" });
   }, [focusIdx]);
 
-  // Date-range hot reflow: 50ms recalc tick
   useEffect(() => {
     const t = setTimeout(() => setRecalcTick((n) => n + 1), 50);
     return () => clearTimeout(t);
@@ -163,72 +216,118 @@ function AttendancePage() {
     setTimeout(() => setExporting(false), 1600);
   };
 
+  const activeEpoch = EPOCHS.find((e) => e.id === epoch);
+
   return (
     <AppShell>
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col bg-background">
         {/* Top bar */}
-        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2">
-          <div className="flex items-baseline gap-3">
-            <h1 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">
-              TELEMETRY // <span className="text-muted-foreground">CELL_NETWORK_TEMPORAL_INTAKE</span>
-            </h1>
-            <span className="mono text-[10px] text-muted-foreground">OP · KIRUBEL.AWOKE</span>
+        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface px-5 py-3">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
+                Attendance Telemetry
+              </h1>
+              <p className="mono mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Cell Network · Temporal Intake
+              </p>
+            </div>
+            <span className="mono hidden items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[10px] text-muted-foreground md:inline-flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+              Operator · Kirubel Awoke
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <SyncBadge online={online} pending={pending} />
             <button
-              onClick={() => { setOnline((v) => !v); if (online) setPending(0); }}
-              className="mono inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted"
+              onClick={() => {
+                setOnline((v) => !v);
+                if (online) setPending(0);
+              }}
+              className="mono inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground transition-colors hover:bg-muted"
             >
               {online ? <WifiOff className="h-3 w-3" /> : <Wifi className="h-3 w-3" />}
-              {online ? "Sever Link" : "Restore"}
+              {online ? "Simulate Offline" : "Restore Link"}
             </button>
           </div>
         </header>
 
-        {/* 3-pane grid */}
-        <div className="grid flex-1 min-h-0" style={{ gridTemplateColumns: "25% 50% 25%" }}>
-          {/* LEFT — Cell node metadata + Chronological Horizon Controller */}
+        {/* 3-pane */}
+        <div
+          className="grid flex-1 min-h-0"
+          style={{ gridTemplateColumns: "280px minmax(0,1fr) 320px" }}
+        >
+          {/* LEFT */}
           <aside className="flex min-h-0 flex-col border-r border-border bg-surface">
-            <SectionHead title="CELL_NODE_METADATA" tag={`${CELL_NODES.length} nodes`} />
+            <SectionHead title="Cell Nodes" tag={`${CELL_NODES.length}`} />
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {CELL_NODES.map((c, i) => {
                 const active = i === activeCell;
                 return (
                   <button
                     key={c.name}
-                    onClick={() => { setActiveCell(i); setFocusIdx(0); }}
+                    onClick={() => {
+                      setActiveCell(i);
+                      setFocusIdx(0);
+                    }}
                     className={[
-                      "w-full border-b border-hairline px-3 py-2.5 text-left transition-colors",
-                      active ? "bg-amber-soft/60" : "hover:bg-muted/50",
+                      "block w-full border-b border-hairline px-3.5 py-3 text-left transition-colors",
+                      active
+                        ? "bg-amber-soft/60 border-l-2 border-l-amber"
+                        : "border-l-2 border-l-transparent hover:bg-muted/50",
                     ].join(" ")}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="mono text-[11.5px] font-semibold uppercase tracking-wider text-foreground">{c.name}</div>
-                      {active && <span className="h-1.5 w-1.5 rounded-full bg-amber shadow-[0_0_0_3px_oklch(0.96_0.07_90)]" />}
+                      <div className="mono text-[11.5px] font-semibold uppercase tracking-wider text-foreground">
+                        {c.name}
+                      </div>
+                      {active && (
+                        <span className="mono rounded-full bg-amber/20 px-1.5 py-px text-[8.5px] font-semibold uppercase tracking-wider text-ochre">
+                          Active
+                        </span>
+                      )}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
+                    <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground">
+                      <MapPin className="h-3 w-3 shrink-0" />
                       <span className="truncate">{c.vector}</span>
                     </div>
-                    <div className="mt-1.5 flex items-center gap-1.5">
-                      <Avatar src={c.leaderAvatar} alt={c.leader} size={16} />
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <Avatar src={c.leaderAvatar} alt={c.leader} size={18} />
                       <span className="text-[11px] text-foreground">{c.leader}</span>
-                      <span className="mono ml-auto text-[9.5px] uppercase tracking-wider text-muted-foreground">LEAD</span>
+                      <span className="mono ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">
+                        Lead
+                      </span>
                     </div>
                   </button>
                 );
               })}
             </div>
 
-            {/* Chronological Horizon Controller */}
+            {/* Chronological Horizon */}
             <div className="border-t border-border bg-background">
-              <div className="flex items-center justify-between border-b border-hairline px-3 py-1.5">
-                <div className="mono text-[9.5px] uppercase tracking-wider text-muted-foreground">CHRONOLOGICAL_HORIZON</div>
-                <div className="mono text-[9px] text-muted-foreground">← / → SHIFT</div>
+              <div className="flex items-center justify-between border-b border-hairline px-3.5 py-2">
+                <div className="mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                  Chronological Horizon
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => shiftEpoch(-1)}
+                    className="rounded border border-border bg-surface p-0.5 text-muted-foreground hover:text-foreground"
+                    aria-label="Previous epoch"
+                  >
+                    <ChevronLeft className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => shiftEpoch(1)}
+                    className="rounded border border-border bg-surface p-0.5 text-muted-foreground hover:text-foreground"
+                    aria-label="Next epoch"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
-              {/* Time-strip slider */}
-              <div className="px-3 py-2">
+
+              <div className="px-3.5 py-2.5">
                 <div className="flex gap-1 overflow-x-auto scrollbar-thin pb-1">
                   {EPOCHS.map((ep) => {
                     const active = epoch === ep.id;
@@ -240,8 +339,8 @@ function AttendancePage() {
                         className={[
                           "mono shrink-0 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-all",
                           active
-                            ? "bg-amber border-amber text-black shadow-[0_2px_0_0_var(--color-ochre),0_0_0_3px_oklch(0.96_0.07_90)] -translate-y-px"
-                            : "bg-background border-border text-foreground hover:border-foreground/40",
+                            ? "border-amber bg-amber text-foreground shadow-[0_1px_0_0_var(--color-ochre)]"
+                            : "border-border bg-surface text-muted-foreground hover:border-foreground/40 hover:text-foreground",
                         ].join(" ")}
                       >
                         {ep.label}
@@ -251,52 +350,59 @@ function AttendancePage() {
                 </div>
               </div>
 
-              {/* Dual date range */}
-              <div className="border-t border-hairline px-3 py-2">
-                <div className="mono mb-1.5 text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                  ANALYTICS_WINDOW · <span className="text-foreground">{windowEpochs.length} epochs</span>
+              <div className="border-t border-hairline px-3.5 py-2.5">
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Analytics Window
+                  </span>
+                  <span className="mono text-[10px] font-semibold text-foreground">
+                    {windowEpochs.length} epochs
+                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <label className="block">
-                    <span className="mono block text-[8.5px] uppercase tracking-wider text-muted-foreground">START</span>
+                    <span className="mono block text-[9px] uppercase tracking-wider text-muted-foreground">
+                      Start
+                    </span>
                     <input
                       type="date"
                       value={rangeStart}
                       onChange={(e) => setRangeStart(e.target.value)}
-                      className="mono mt-0.5 w-full rounded-md border border-border bg-background px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
+                      className="mono mt-0.5 w-full rounded-md border border-border bg-surface px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
                     />
                   </label>
                   <label className="block">
-                    <span className="mono block text-[8.5px] uppercase tracking-wider text-muted-foreground">END</span>
+                    <span className="mono block text-[9px] uppercase tracking-wider text-muted-foreground">
+                      End
+                    </span>
                     <input
                       type="date"
                       value={rangeEnd}
                       onChange={(e) => setRangeEnd(e.target.value)}
-                      className="mono mt-0.5 w-full rounded-md border border-border bg-background px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
+                      className="mono mt-0.5 w-full rounded-md border border-border bg-surface px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
                     />
                   </label>
                 </div>
               </div>
 
-              {/* Export trigger */}
               <div className="border-t border-hairline p-3">
                 <button
                   onClick={triggerExport}
                   disabled={exporting}
                   className={[
-                    "mono group relative flex w-full items-center justify-center gap-2 rounded-md border-2 border-amber bg-background px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wider text-foreground transition-all",
-                    exporting ? "opacity-80" : "hover:bg-amber-soft hover:shadow-[0_0_0_3px_oklch(0.96_0.07_90)]",
+                    "mono inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all",
+                    exporting ? "opacity-80" : "hover:bg-foreground/90",
                   ].join(" ")}
                 >
                   {exporting ? (
                     <>
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber border-t-transparent" />
-                      SERIALIZING_MATRIX...
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                      Serializing…
                     </>
                   ) : (
                     <>
                       <Download className="h-3.5 w-3.5" />
-                      [ ⤓ EXPORT NODE MATRIX TO PDF ]
+                      Export Matrix · PDF
                     </>
                   )}
                 </button>
@@ -304,23 +410,38 @@ function AttendancePage() {
             </div>
           </aside>
 
-          {/* CENTER — Temporal commits */}
+          {/* CENTER */}
           <section className="flex min-h-0 flex-col bg-background">
-            <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-2">
-              <div className="mono text-[10.5px] font-semibold uppercase tracking-wider text-foreground">
-                TEMPORAL_INTAKE <span className="text-muted-foreground">// STATE_COMMITS</span>
+            <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-2.5">
+              <div>
+                <div className="text-[13px] font-semibold tracking-tight text-foreground">
+                  {cellNode.name}
+                  <span className="ml-2 text-muted-foreground font-normal">·</span>
+                  <span className="ml-2 mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                    State Commits
+                  </span>
+                </div>
+                <div className="mono mt-0.5 text-[10px] text-muted-foreground">
+                  {activeEpoch?.full}
+                </div>
               </div>
-              <div className="mono text-[10px] text-muted-foreground">
-                {EPOCHS.find((e) => e.id === epoch)?.full}
+              <div className="mono flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span>
+                  <span className="text-foreground font-semibold">{committed}</span>
+                  <span className="opacity-50"> / </span>
+                  {roster.length} committed
+                </span>
               </div>
             </div>
 
-            {/* Column header */}
-            <div className="mono grid items-center gap-2 border-b border-border bg-surface px-4 py-1.5 text-[9.5px] uppercase tracking-wider text-muted-foreground" style={{ gridTemplateColumns: "28px 1.6fr 1.4fr 210px" }}>
+            <div
+              className="mono grid items-center gap-3 border-b border-border bg-background/60 px-5 py-2 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground"
+              style={{ gridTemplateColumns: "28px 1.6fr 1.2fr 220px" }}
+            >
               <span className="text-right">#</span>
-              <span>NODE_IDENTITY · MICRO_TELEMETRY</span>
-              <span>CONTACT_MATRIX</span>
-              <span className="text-center">STATE_COMMIT</span>
+              <span>Member · Telemetry</span>
+              <span>Contact</span>
+              <span className="text-center">State Commit</span>
             </div>
 
             <div ref={gridRef} className="flex-1 overflow-y-auto scrollbar-thin">
@@ -335,36 +456,45 @@ function AttendancePage() {
                     data-row={i}
                     onClick={() => setFocusIdx(i)}
                     className={[
-                      "grid items-center gap-2 border-b border-hairline px-4 py-2 transition-all",
-                      focused ? "bg-muted/60" : "",
-                      st === "PRESENT" ? "border-l-2 border-l-amber bg-amber-soft/30" : "",
-                      st === "ABSENT" ? "opacity-70" : "",
-                      st === "EXCUSED" ? "border-l-2 border-l-ochre [border-left-style:dashed]" : "",
+                      "group grid cursor-pointer items-center gap-3 border-b border-hairline px-5 py-2.5 transition-colors",
+                      focused ? "bg-amber-soft/50" : "hover:bg-muted/40",
+                      st === "ABSENT" ? "opacity-75" : "",
                     ].join(" ")}
-                    style={{ gridTemplateColumns: "28px 1.6fr 1.4fr 210px" }}
+                    style={{ gridTemplateColumns: "28px 1.6fr 1.2fr 220px" }}
                   >
-                    <span className="mono text-right text-[10px] text-muted-foreground">{(i + 1).toString().padStart(2, "0")}</span>
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Avatar src={m.avatar} alt={m.name} size={32} />
+                    <span className="mono text-right text-[10px] text-muted-foreground">
+                      {(i + 1).toString().padStart(2, "0")}
+                    </span>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Avatar src={m.avatar} alt={m.name} size={34} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-[12.5px] font-semibold text-foreground">{m.name}</span>
-                          <span className="mono shrink-0 rounded bg-foreground/90 px-1 py-px text-[8.5px] uppercase tracking-wider text-background">{m.gifts[0]?.name}</span>
-                          {/* Micro-analytics telemetry chip */}
-                          <span
-                            className={[
-                              "mono ml-auto inline-flex items-center gap-1 rounded border px-1 py-px text-[9px] font-semibold uppercase tracking-wider",
-                              breach
-                                ? "border-ochre/60 bg-[#FFF7E6] text-ochre"
-                                : "border-border bg-[#FAFAFA] text-muted-foreground",
-                            ].join(" ")}
-                            title={`Across ${windowEpochs.length} epoch window`}
-                          >
-                            {breach && <AlertCircle className="h-2.5 w-2.5" />}
-                            [ATTN: {ana.attn}% // ABSENTS: {ana.absents}]
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-[12.5px] font-semibold text-foreground">
+                            {m.name}
+                          </span>
+                          <span className="mono shrink-0 rounded-sm bg-foreground/8 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-foreground">
+                            {m.gifts[0]?.name}
                           </span>
                         </div>
-                        <div className="truncate text-[10.5px] text-muted-foreground">{m.occupation}</div>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="truncate text-[10.5px] text-muted-foreground">
+                            {m.occupation}
+                          </span>
+                          <span
+                            className={[
+                              "mono inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider",
+                              breach
+                                ? "bg-ochre/15 text-ochre"
+                                : "bg-muted text-muted-foreground",
+                            ].join(" ")}
+                            title={`${windowEpochs.length}-epoch window`}
+                          >
+                            {breach && <AlertCircle className="h-2.5 w-2.5" />}
+                            ATTN {ana.attn}%
+                            <span className="opacity-50">·</span>
+                            ABS {ana.absents}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="mono min-w-0">
@@ -377,75 +507,116 @@ function AttendancePage() {
               })}
             </div>
 
-            {/* Footer hotkeys */}
-            <div className="mono flex items-center justify-between border-t border-border bg-surface px-4 py-1.5 text-[10px] text-muted-foreground">
+            <div className="mono flex items-center justify-between border-t border-border bg-surface px-5 py-2 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-3">
-                <Key k="←→" l="epoch" />
-                <Key k="↑↓" l="navigate" />
-                <Key k="P" l="present" />
-                <Key k="A" l="absent" />
-                <Key k="E" l="excused" />
+                <Key k="←→" l="Epoch" />
+                <Key k="↑↓" l="Navigate" />
+                <Key k="P" l="Present" />
+                <Key k="A" l="Absent" />
+                <Key k="E" l="Excused" />
               </div>
-              <span>committed <span className="text-foreground">{committed}</span> / {roster.length}</span>
+              <span>
+                Focus row{" "}
+                <span className="text-foreground font-semibold">
+                  {(focusIdx + 1).toString().padStart(2, "0")}
+                </span>
+                /{roster.length}
+              </span>
             </div>
           </section>
 
-          {/* RIGHT — Node Network Analytics Engine */}
+          {/* RIGHT */}
           <aside className="flex min-h-0 flex-col border-l border-border bg-surface">
-            <SectionHead title="NODE_NETWORK_ANALYTICS_ENGINE" tag="LIVE" />
+            <SectionHead title="Network Analytics" tag="Live" />
 
-            {/* Cohort vector */}
             <div className="grid grid-cols-3 gap-2 border-b border-border p-3">
-              <CohortBlock label="PRESENT" value={present} variant="amber" />
-              <CohortBlock label="ABSENT" value={absent} variant="muted" />
-              <CohortBlock label="EXCUSED" value={excused} variant="dashed" />
+              <CohortBlock label="Present" value={present} variant="amber" />
+              <CohortBlock label="Absent" value={absent} variant="muted" />
+              <CohortBlock label="Excused" value={excused} variant="dashed" />
             </div>
 
-            {/* Active Quorum Gauge */}
             <div className="border-b border-border p-3">
-              <div className="mono flex items-baseline justify-between text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                <span>ACTIVE_QUORUM</span>
-                <span>{committed}/{roster.length}</span>
+              <div className="flex items-baseline justify-between">
+                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Active Quorum
+                </span>
+                <span className="mono text-[10px] text-muted-foreground">
+                  {committed}/{roster.length}
+                </span>
               </div>
-              <div className="mono mt-1 flex items-baseline gap-1.5">
-                <span className="text-[44px] font-semibold leading-none tracking-tight text-foreground">{quorum.toFixed(1)}</span>
-                <span className="text-[16px] text-muted-foreground">%</span>
-                <span className="mono ml-auto text-[9.5px] uppercase tracking-wider text-ochre">Quorum Reached</span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-[40px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
+                  {quorum.toFixed(1)}
+                </span>
+                <span className="text-[14px] text-muted-foreground">%</span>
+                <span
+                  className={[
+                    "mono ml-auto rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                    quorum >= 80
+                      ? "bg-emerald-500/15 text-emerald-700"
+                      : quorum >= 60
+                      ? "bg-amber/20 text-ochre"
+                      : "bg-destructive/15 text-destructive",
+                  ].join(" ")}
+                >
+                  {quorum >= 80 ? "Above Baseline" : quorum >= 60 ? "Watch" : "Breach"}
+                </span>
               </div>
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-gradient-to-r from-amber to-ochre transition-all" style={{ width: `${quorum}%` }} />
+                <div
+                  className="h-full bg-gradient-to-r from-amber to-ochre transition-all"
+                  style={{ width: `${quorum}%` }}
+                />
               </div>
             </div>
 
-            {/* Time-Series Trend Canvas */}
             <div className="border-b border-border p-3">
-              <div className="mono mb-1.5 flex items-baseline justify-between text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                <span>TIME_SERIES_TREND</span>
-                <span>{windowEpochs.length} epochs</span>
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Trend Canvas
+                </span>
+                <span className="mono text-[10px] text-muted-foreground">
+                  {windowEpochs.length} epochs
+                </span>
               </div>
               <TrendCanvas data={trend} />
             </div>
 
-            {/* Retention Flag Stream */}
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="mono flex items-center justify-between border-b border-border px-3 py-1.5 text-[9.5px] uppercase tracking-wider text-muted-foreground">
-                <span>RETENTION_FLAG_STREAM</span>
-                <span>RT · 50ms</span>
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Flag Stream
+                </span>
+                <span className="mono text-[9px] text-muted-foreground">RT · 50ms</span>
               </div>
               <div className="flex-1 overflow-y-auto scrollbar-thin">
                 {Object.entries(memberAnalytics)
                   .filter(([, v]) => v.absents >= 3)
                   .slice(0, 3)
                   .map(([mid, v]) => {
-                    const m = roster.find((r) => r.id === mid)!;
+                    const m = roster.find((r) => r.id === mid);
+                    if (!m) return null;
                     return (
-                      <Flag key={mid} severity="critical" tag="RETENTION_BREACH"
-                        body={`${m.name.toUpperCase()} — ${v.absents} absences across ${windowEpochs.length}-epoch window. Pastoral escalation advised.`} />
+                      <Flag
+                        key={mid}
+                        severity="critical"
+                        tag="Retention Breach"
+                        body={`${m.name} — ${v.absents} absences across ${windowEpochs.length}-epoch window. Pastoral escalation advised.`}
+                      />
                     );
                   })}
-                <Flag severity="warn" tag="STRUCTURAL_IMBALANCE" body={`${cellNode.name} density at ${Math.round((roster.length / cellNode.capacity) * 100)}% — drifting toward optimal ceiling.`} />
-                <Flag severity="warn" tag="GIFTING_GAP" body={`No verified Discernment-gifted node committed PRESENT this epoch.`} />
-                <Flag severity="info" tag="QUORUM_BASELINE" body={`Quorum ${quorum.toFixed(1)}% vs 80% baseline for ${cellNode.base}.`} />
+                <Flag
+                  severity="warn"
+                  tag="Structural Imbalance"
+                  body={`${cellNode.name} density at ${Math.round(
+                    (roster.length / cellNode.capacity) * 100,
+                  )}% — drifting toward optimal ceiling.`}
+                />
+                <Flag
+                  severity="info"
+                  tag="Quorum Baseline"
+                  body={`Quorum ${quorum.toFixed(1)}% vs 80% baseline for ${cellNode.base}.`}
+                />
               </div>
             </div>
           </aside>
@@ -459,9 +630,13 @@ function AttendancePage() {
 
 function SectionHead({ title, tag }: { title: string; tag?: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-border bg-surface px-3 py-2">
-      <div className="mono text-[10.5px] font-semibold uppercase tracking-wider text-foreground">{title}</div>
-      {tag && <span className="mono text-[9.5px] uppercase tracking-wider text-muted-foreground">{tag}</span>}
+    <div className="flex items-center justify-between border-b border-border bg-surface px-3.5 py-2.5">
+      <div className="text-[11.5px] font-semibold tracking-tight text-foreground">{title}</div>
+      {tag && (
+        <span className="mono rounded-full border border-border bg-background px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {tag}
+        </span>
+      )}
     </div>
   );
 }
@@ -469,17 +644,19 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
 function Key({ k, l }: { k: string; l: string }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <kbd className="mono rounded border border-border bg-background px-1.5 py-px text-[9.5px] font-semibold text-foreground shadow-[0_1px_0_0_var(--color-border)]">{k}</kbd>
+      <kbd className="mono rounded border border-border bg-background px-1.5 py-px text-[9.5px] font-semibold text-foreground shadow-[0_1px_0_0_var(--color-border)]">
+        {k}
+      </kbd>
       <span className="text-[10px] uppercase tracking-wider">{l}</span>
     </span>
   );
 }
 
 function TriToggle({ value, onChange }: { value: State; onChange: (v: State) => void }) {
-  const opts: { v: NonNullable<State>; label: string }[] = [
-    { v: "PRESENT", label: "P" },
-    { v: "ABSENT", label: "A" },
-    { v: "EXCUSED", label: "E" },
+  const opts: { v: NonNullable<State>; label: string; Icon: typeof Check }[] = [
+    { v: "PRESENT", label: "Present", Icon: Check },
+    { v: "ABSENT", label: "Absent", Icon: X },
+    { v: "EXCUSED", label: "Excused", Icon: Minus },
   ];
   return (
     <div className="inline-flex w-full justify-end gap-1">
@@ -487,18 +664,24 @@ function TriToggle({ value, onChange }: { value: State; onChange: (v: State) => 
         const active = value === o.v;
         const cls = active
           ? o.v === "PRESENT"
-            ? "bg-amber text-foreground border-amber shadow-[0_0_0_3px_oklch(0.96_0.07_90)]"
+            ? "bg-amber text-foreground border-amber"
             : o.v === "ABSENT"
             ? "bg-foreground text-background border-foreground"
             : "bg-ochre text-background border-ochre"
-          : "bg-background text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground";
+          : "bg-surface text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground";
+        const Icon = o.Icon;
         return (
           <button
             key={o.v}
-            onClick={(e) => { e.stopPropagation(); onChange(active ? null : o.v); }}
-            className={`mono inline-flex h-7 min-w-[60px] items-center justify-center gap-1 rounded-md border px-2 text-[10px] font-semibold uppercase tracking-wider transition-all ${cls}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(active ? null : o.v);
+            }}
+            className={`mono inline-flex h-7 flex-1 items-center justify-center gap-1 rounded-md border px-1.5 text-[9.5px] font-semibold uppercase tracking-wider transition-all ${cls}`}
+            title={o.label}
           >
-            <span className="opacity-70">[</span>{o.label === "P" ? "PRESENT" : o.label === "A" ? "ABSENT" : "EXCUSED"}<span className="opacity-70">]</span>
+            <Icon className="h-3 w-3" />
+            {o.label}
           </button>
         );
       })}
@@ -506,50 +689,103 @@ function TriToggle({ value, onChange }: { value: State; onChange: (v: State) => 
   );
 }
 
-function CohortBlock({ label, value, variant }: { label: string; value: number; variant: "amber" | "muted" | "dashed" }) {
+function CohortBlock({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: number;
+  variant: "amber" | "muted" | "dashed";
+}) {
   const cls =
     variant === "amber"
-      ? "border-amber/60 bg-amber-soft/40"
+      ? "border-amber/50 bg-amber-soft/50"
       : variant === "dashed"
       ? "border-border [border-style:dashed] bg-background"
       : "border-border bg-background";
   const valueCls =
-    variant === "amber" ? "text-ochre" : variant === "muted" ? "text-muted-foreground" : "text-foreground";
+    variant === "amber"
+      ? "text-ochre"
+      : variant === "muted"
+      ? "text-foreground"
+      : "text-foreground";
   return (
-    <div className={`rounded-md border px-2 py-2 ${cls}`}>
-      <div className="mono text-[8.5px] uppercase tracking-wider text-muted-foreground">[{label}]</div>
-      <div className={`mono text-[22px] font-semibold leading-none tracking-tight ${valueCls}`}>{value}</div>
+    <div className={`rounded-md border px-2.5 py-2 ${cls}`}>
+      <div className="mono text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className={`mt-0.5 text-[24px] font-semibold leading-none tracking-tight tabular-nums ${valueCls}`}>
+        {value}
+      </div>
     </div>
   );
 }
 
-function TrendCanvas({ data }: { data: { label: string; value: number; present: number; total: number }[] }) {
-  const w = 260, h = 88, pad = 14;
+function TrendCanvas({
+  data,
+}: {
+  data: { label: string; value: number; present: number; total: number }[];
+}) {
+  const w = 280,
+    h = 96,
+    pad = 14;
   if (data.length === 0) {
-    return <div className="mono py-6 text-center text-[10px] text-muted-foreground">// NO_DATA_IN_WINDOW</div>;
+    return (
+      <div className="mono py-6 text-center text-[10px] text-muted-foreground">
+        No data in window
+      </div>
+    );
   }
-  const innerW = w - pad * 2, innerH = h - pad - 18;
+  const innerW = w - pad * 2,
+    innerH = h - pad - 20;
   const bw = innerW / data.length;
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-24 w-full">
       <defs>
         <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="oklch(0.83 0.17 84)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="oklch(0.83 0.17 84)" stopOpacity="0.08" />
+          <stop offset="100%" stopColor="oklch(0.83 0.17 84)" stopOpacity="0.1" />
         </linearGradient>
       </defs>
-      {/* baseline */}
-      <line x1={pad} x2={w - pad} y1={h - 18} y2={h - 18} stroke="oklch(0.92 0.005 270)" strokeWidth="1" />
+      <line
+        x1={pad}
+        x2={w - pad}
+        y1={h - 20}
+        y2={h - 20}
+        stroke="oklch(0.92 0.005 270)"
+        strokeWidth="1"
+      />
       {data.map((d, i) => {
         const bh = Math.max(2, d.value * innerH);
-        const x = pad + i * bw + 2;
-        const y = h - 18 - bh;
+        const x = pad + i * bw + 3;
+        const y = h - 20 - bh;
+        const bwInner = Math.max(4, bw - 6);
         return (
           <g key={i}>
-            <rect x={x} y={y} width={bw - 4} height={bh} fill="url(#trendFill)" rx="2" />
-            <rect x={x} y={y} width={bw - 4} height={1.5} fill="oklch(0.68 0.16 60)" />
-            <text x={x + (bw - 4) / 2} y={h - 6} textAnchor="middle" className="mono" fontSize="7.5" fill="oklch(0.5 0.01 270)">{d.label}</text>
-            <text x={x + (bw - 4) / 2} y={y - 2} textAnchor="middle" className="mono" fontSize="7.5" fill="oklch(0.16 0.01 270)">{Math.round(d.value * 100)}</text>
+            <rect x={x} y={y} width={bwInner} height={bh} fill="url(#trendFill)" rx="2" />
+            <rect x={x} y={y} width={bwInner} height={1.5} fill="oklch(0.68 0.16 60)" />
+            <text
+              x={x + bwInner / 2}
+              y={h - 6}
+              textAnchor="middle"
+              className="mono"
+              fontSize="8"
+              fill="oklch(0.5 0.01 270)"
+            >
+              {d.label}
+            </text>
+            <text
+              x={x + bwInner / 2}
+              y={y - 3}
+              textAnchor="middle"
+              className="mono"
+              fontSize="8"
+              fontWeight="600"
+              fill="oklch(0.16 0.01 270)"
+            >
+              {Math.round(d.value * 100)}
+            </text>
           </g>
         );
       })}
@@ -557,37 +793,45 @@ function TrendCanvas({ data }: { data: { label: string; value: number; present: 
   );
 }
 
-function Flag({ severity, tag, body }: { severity: "critical" | "warn" | "info"; tag: string; body: string }) {
+function Flag({
+  severity,
+  tag,
+  body,
+}: {
+  severity: "critical" | "warn" | "info";
+  tag: string;
+  body: string;
+}) {
   const cfg = {
-    critical: { Icon: AlertOctagon, color: "text-destructive", bar: "bg-destructive", label: "FLAG" },
-    warn: { Icon: AlertTriangle, color: "text-ochre", bar: "bg-ochre", label: "ALERT" },
-    info: { Icon: Activity, color: "text-foreground", bar: "bg-foreground", label: "INFO" },
+    critical: { Icon: AlertOctagon, color: "text-destructive", bar: "bg-destructive" },
+    warn: { Icon: AlertTriangle, color: "text-ochre", bar: "bg-ochre" },
+    info: { Icon: Activity, color: "text-foreground", bar: "bg-foreground/60" },
   }[severity];
   const Icon = cfg.Icon;
   return (
-    <div className="relative border-b border-hairline px-3 py-2 pl-4">
+    <div className="relative border-b border-hairline px-3 py-2.5 pl-4">
       <span className={`absolute left-0 top-0 h-full w-[3px] ${cfg.bar}`} />
       <div className={`mono flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-wider ${cfg.color}`}>
-        <Icon className="h-3 w-3" /> [{cfg.label}: {tag}]
+        <Icon className="h-3 w-3" /> {tag}
       </div>
-      <p className="mt-0.5 text-[11px] leading-snug text-foreground">{body}</p>
+      <p className="mt-1 text-[11px] leading-snug text-foreground">{body}</p>
     </div>
   );
 }
 
 function SyncBadge({ online, pending }: { online: boolean; pending: number }) {
   return online ? (
-    <div className="mono inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+    <div className="mono inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      [ONLINE // ARCHITECTURAL SYNCHRONIZATION SECURE]
+      Online · Synced
     </div>
   ) : (
-    <div className="mono inline-flex items-center gap-1.5 rounded-md border border-ochre/40 bg-amber-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-foreground">
+    <div className="mono inline-flex items-center gap-1.5 rounded-full border border-ochre/40 bg-amber-soft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-ochre">
       <span className="relative flex h-1.5 w-1.5">
         <span className="absolute inset-0 animate-ping rounded-full bg-ochre opacity-75" />
         <span className="relative h-1.5 w-1.5 rounded-full bg-ochre" />
       </span>
-      [EDGE BUFFER · {pending} OPS QUEUED]
+      Edge Buffer · {pending} queued
     </div>
   );
 }
