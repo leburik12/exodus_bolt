@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Users, Network, ScanLine, Sparkles, Command, Languages } from "lucide-react";
 import type { ReactNode } from "react";
-import logo from "@/assets/zetseat_logo.jpg.asset.json";
+// import logo from "@/assets/zetseat_logo.jpg.asset.json";
+import logo from "@/assets/zetseat_logo.jpg?url";
 import { useI18n } from "@/lib/i18n";
 
 export function AppShell({ children }: { children: ReactNode }) {
