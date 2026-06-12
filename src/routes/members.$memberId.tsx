@@ -284,7 +284,8 @@ function Panel({
   );
 }
 
-function Facts({ rows }: { rows: [typeof Mail, string, string][] }) {
+type IconType = typeof Mail;
+function Facts({ rows }: { rows: [IconType, string, string][] }) {
   return (
     <dl className="divide-y divide-hairline">
       {rows.map(([Icon, k, v]) => (
