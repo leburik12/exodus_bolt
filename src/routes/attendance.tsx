@@ -118,6 +118,9 @@ function AttendancePage() {
   const [states, setStates] = useState<Record<string, Record<string, State>>>({});
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [rangeStart, setRangeStart] = useState("2026-05-01");
+  const [rangeEnd, setRangeEnd] = useState("2026-06-12");
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
