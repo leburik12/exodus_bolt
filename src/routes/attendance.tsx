@@ -574,6 +574,24 @@ function AttendancePage() {
           </section>
         </div>
       </div>
+
+      {exportOpen && (
+        <ExportPreviewModal
+          cellName={cellNode.name}
+          cellLeader={cellNode.leader}
+          cellVector={cellNode.vector}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          setRangeStart={setRangeStart}
+          setRangeEnd={setRangeEnd}
+          preview={exportPreview}
+          dates={exportDates}
+          lang={lang}
+          exporting={exporting}
+          onClose={() => setExportOpen(false)}
+          onConfirm={triggerExport}
+        />
+      )}
     </AppShell>
   );
 }
