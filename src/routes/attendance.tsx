@@ -13,6 +13,8 @@ import {
   BarChart3,
   ExternalLink,
   Search,
+  Calendar as CalendarIcon,
+  FileText,
 } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, cellGroupCatalog } from "@/lib/mock-data";
