@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       <aside className="flex w-[68px] shrink-0 flex-col items-center border-r border-border bg-surface py-3">
         <div className="mb-4 grid h-10 w-10 place-items-center overflow-hidden rounded-md ring-1 ring-border">
-          <img src={logo.url} alt="Zetseat" className="h-full w-full object-cover" />
+          <img src={logo} alt="Zetseat" className="h-full w-full object-cover" />
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {nav.map((n) => {
