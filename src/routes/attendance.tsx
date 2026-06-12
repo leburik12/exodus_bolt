@@ -13,6 +13,8 @@ import {
   BarChart3,
   ExternalLink,
   Search,
+  Calendar as CalendarIcon,
+  FileText,
 } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, cellGroupCatalog } from "@/lib/mock-data";
@@ -77,6 +79,35 @@ function synthState(memberId: string, epochId: string): NonNullable<State> {
   return "EXCUSED";
 }
 
+function fmtDateLong(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+function fmtDateShort(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+}
+function datesInRange(startIso: string, endIso: string): string[] {
+  if (!startIso || !endIso) return [];
+  const out: string[] = [];
+  const s = new Date(startIso + "T00:00:00");
+  const e = new Date(endIso + "T00:00:00");
+  if (e < s) return [];
+  // cap to 60 days to avoid pathological loops
+  for (let i = 0, d = new Date(s); d <= e && i < 60; i++, d.setDate(d.getDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function AttendancePage() {
   const { t, lang } = useI18n();
   const [activeCell, setActiveCell] = useState(0);
@@ -87,6 +118,9 @@ function AttendancePage() {
   const [states, setStates] = useState<Record<string, Record<string, State>>>({});
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [rangeStart, setRangeStart] = useState("2026-05-01");
+  const [rangeEnd, setRangeEnd] = useState("2026-06-12");
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
@@ -172,10 +206,53 @@ function AttendancePage() {
 
   const triggerExport = () => {
     setExporting(true);
-    setTimeout(() => setExporting(false), 1600);
+    setTimeout(() => {
+      setExporting(false);
+      setExportOpen(false);
+    }, 1400);
   };
 
-  const activeEpoch = EPOCHS.find((e) => e.id === epoch);
+  const activeEpoch = EPOCHS.find((e) => e.id === epoch) ?? {
+    id: epoch,
+    label: fmtDateShort(epoch),
+    full: fmtDateLong(epoch),
+  };
+
+  // Aggregated export preview: per-session totals + per-member tallies across range
+  const exportDates = useMemo(() => datesInRange(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
+  const exportPreview = useMemo(() => {
+    const perSession = exportDates.map((d) => {
+      let p = 0, a = 0, e = 0;
+      for (const m of fullRoster) {
+        const k = `${cellNode.id}::${d}`;
+        const st = states[k]?.[m.id] ?? synthState(m.id, d);
+        if (st === "PRESENT") p++;
+        else if (st === "ABSENT") a++;
+        else e++;
+      }
+      return { date: d, p, a, e, total: fullRoster.length };
+    });
+    const perMember = fullRoster.map((m) => {
+      let p = 0, a = 0, e = 0;
+      for (const d of exportDates) {
+        const k = `${cellNode.id}::${d}`;
+        const st = states[k]?.[m.id] ?? synthState(m.id, d);
+        if (st === "PRESENT") p++;
+        else if (st === "ABSENT") a++;
+        else e++;
+      }
+      const rate = exportDates.length ? (p / exportDates.length) * 100 : 0;
+      return { m, p, a, e, rate };
+    });
+    const totals = perSession.reduce(
+      (acc, s) => ({ p: acc.p + s.p, a: acc.a + s.a, e: acc.e + s.e }),
+      { p: 0, a: 0, e: 0 },
+    );
+    const totalSlots = fullRoster.length * exportDates.length;
+    const avgRate = totalSlots ? (totals.p / totalSlots) * 100 : 0;
+    return { perSession, perMember, totals, avgRate, totalSlots };
+  }, [exportDates, fullRoster, cellNode.id, states]);
+
 
   return (
     <AppShell>
@@ -314,27 +391,37 @@ function AttendancePage() {
                     );
                   })}
                 </div>
+                {/* Session Date Picker */}
+                <div className="mt-2.5 rounded-md border border-border bg-surface px-2 py-2">
+                  <div className="mono flex items-center justify-between pb-1.5">
+                    <span className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Session Date
+                    </span>
+                    <button
+                      onClick={() => setEpoch(todayIso())}
+                      className="mono rounded border border-border bg-background px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-foreground hover:border-amber"
+                    >
+                      Today
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="date"
+                      value={epoch}
+                      onChange={(e) => setEpoch(e.target.value)}
+                      className="mono h-7 w-full rounded-md border border-border bg-background pl-7 pr-2 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="border-t border-hairline p-3">
                 <button
-                  onClick={triggerExport}
-                  disabled={exporting}
-                  className={[
-                    "mono inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all",
-                    exporting ? "opacity-80" : "hover:bg-foreground/90",
-                  ].join(" ")}
+                  onClick={() => setExportOpen(true)}
+                  className="mono inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all hover:bg-foreground/90"
                 >
-                  {exporting ? (
-                    <>
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      {t("att.serializing")}
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-3.5 w-3.5" />
-                      {t("att.export")}
-                    </>
-                  )}
+                  <Download className="h-3.5 w-3.5" />
+                  {t("att.export")}
                 </button>
               </div>
             </div>
@@ -487,6 +574,24 @@ function AttendancePage() {
           </section>
         </div>
       </div>
+
+      {exportOpen && (
+        <ExportPreviewModal
+          cellName={cellNode.name}
+          cellLeader={cellNode.leader}
+          cellVector={cellNode.vector}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          setRangeStart={setRangeStart}
+          setRangeEnd={setRangeEnd}
+          preview={exportPreview}
+          dates={exportDates}
+          lang={lang}
+          exporting={exporting}
+          onClose={() => setExportOpen(false)}
+          onConfirm={triggerExport}
+        />
+      )}
     </AppShell>
   );
 }
@@ -583,6 +688,300 @@ function SyncBadge({ online, pending }: { online: boolean; pending: number }) {
         <span className="relative h-1.5 w-1.5 rounded-full bg-ochre" />
       </span>
       Edge Buffer · {pending} queued
+    </div>
+  );
+}
+
+type PreviewData = {
+  perSession: { date: string; p: number; a: number; e: number; total: number }[];
+  perMember: { m: (typeof ALL)[number]; p: number; a: number; e: number; rate: number }[];
+  totals: { p: number; a: number; e: number };
+  avgRate: number;
+  totalSlots: number;
+};
+
+function ExportPreviewModal({
+  cellName,
+  cellLeader,
+  cellVector,
+  rangeStart,
+  rangeEnd,
+  setRangeStart,
+  setRangeEnd,
+  preview,
+  dates,
+  lang,
+  exporting,
+  onClose,
+  onConfirm,
+}: {
+  cellName: string;
+  cellLeader: string;
+  cellVector: string;
+  rangeStart: string;
+  rangeEnd: string;
+  setRangeStart: (v: string) => void;
+  setRangeEnd: (v: string) => void;
+  preview: PreviewData;
+  dates: string[];
+  lang: "en" | "am";
+  exporting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const maxBar = Math.max(1, ...preview.perSession.map((s) => s.total));
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-border bg-surface px-6 py-4">
+          <div className="min-w-0">
+            <div className="mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Export Preview · Attendance Matrix
+            </div>
+            <h2 className="mt-1 flex items-center gap-2 text-[18px] font-semibold tracking-tight text-foreground">
+              <FileText className="h-4 w-4 text-ochre" />
+              {cellName}
+              <span className="mono rounded-full border border-amber bg-amber-soft px-2 py-px text-[9.5px] font-semibold uppercase tracking-wider text-foreground">
+                {dates.length} sessions
+              </span>
+            </h2>
+            <div className="mono mt-1 text-[11px] text-muted-foreground">
+              Lead · {cellLeader} &nbsp;·&nbsp; {cellVector}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid items-end gap-3 border-b border-border bg-surface/60 px-6 py-3 md:grid-cols-[1fr_1fr_auto_auto]">
+          <div>
+            <div className="mono pb-1 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+              From
+            </div>
+            <div className="relative">
+              <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={rangeStart}
+                max={rangeEnd}
+                onChange={(e) => setRangeStart(e.target.value)}
+                className="mono h-9 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[12px] text-foreground focus:border-amber focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <div className="mono pb-1 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+              To
+            </div>
+            <div className="relative">
+              <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={rangeEnd}
+                min={rangeStart}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                className="mono h-9 w-full rounded-md border border-border bg-background pl-8 pr-2 text-[12px] text-foreground focus:border-amber focus:outline-none"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const t = todayIso();
+              const d = new Date(t);
+              d.setDate(d.getDate() - 29);
+              setRangeStart(d.toISOString().slice(0, 10));
+              setRangeEnd(t);
+            }}
+            className="mono h-9 rounded-md border border-border bg-background px-3 text-[10px] font-semibold uppercase tracking-wider text-foreground hover:border-amber"
+          >
+            Last 30d
+          </button>
+          <button
+            onClick={() => {
+              const t = todayIso();
+              setRangeStart(t);
+              setRangeEnd(t);
+            }}
+            className="mono h-9 rounded-md border border-border bg-background px-3 text-[10px] font-semibold uppercase tracking-wider text-foreground hover:border-amber"
+          >
+            Today only
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-px border-b border-border bg-border md:grid-cols-5">
+          <StatCard label="Sessions" value={dates.length.toString()} />
+          <StatCard label="Slots" value={preview.totalSlots.toString()} />
+          <StatCard label="Present" value={preview.totals.p.toString()} accent="amber" />
+          <StatCard label="Absent" value={preview.totals.a.toString()} />
+          <StatCard label="Avg Rate" value={`${preview.avgRate.toFixed(1)}%`} accent="amber" />
+        </div>
+
+        <div className="grid min-h-0 flex-1 gap-px overflow-hidden bg-border md:grid-cols-[1.1fr_1.5fr]">
+          <div className="flex min-h-0 flex-col bg-background">
+            <div className="mono border-b border-border bg-surface px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Per-Session Telemetry
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin p-3">
+              {dates.length === 0 && (
+                <div className="mono p-6 text-center text-[11px] text-muted-foreground">
+                  No sessions in selected range.
+                </div>
+              )}
+              {preview.perSession.map((s) => {
+                const pct = (s.p / Math.max(1, s.total)) * 100;
+                return (
+                  <div key={s.date} className="mb-2 last:mb-0">
+                    <div className="mono flex items-center justify-between text-[10.5px]">
+                      <span className="text-foreground font-semibold">{fmtDateShort(s.date)}</span>
+                      <span className="text-muted-foreground">
+                        <span className="text-ochre font-semibold">{s.p}</span>
+                        <span className="opacity-50">/</span>
+                        {s.total} · {pct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="mt-1 flex h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="bg-gradient-to-r from-amber to-ochre"
+                        style={{ width: `${(s.p / maxBar) * 100}%` }}
+                      />
+                      <div
+                        className="bg-foreground/70"
+                        style={{ width: `${(s.a / maxBar) * 100}%` }}
+                      />
+                      <div
+                        className="bg-ochre/40"
+                        style={{ width: `${(s.e / maxBar) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-col bg-background">
+            <div className="mono border-b border-border bg-surface px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Per-Member Rollup
+            </div>
+            <div
+              className="mono grid items-center gap-2 border-b border-hairline bg-background/60 px-4 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground"
+              style={{ gridTemplateColumns: "1.6fr 38px 38px 38px 56px" }}
+            >
+              <span>Member</span>
+              <span className="text-right">P</span>
+              <span className="text-right">A</span>
+              <span className="text-right">E</span>
+              <span className="text-right">Rate</span>
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin">
+              {preview.perMember.map((r) => (
+                <div
+                  key={r.m.id}
+                  className="grid items-center gap-2 border-b border-hairline px-4 py-1.5 text-[11px] hover:bg-muted/40"
+                  style={{ gridTemplateColumns: "1.6fr 38px 38px 38px 56px" }}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Avatar src={r.m.avatar} alt={r.m.name} size={22} />
+                    <div className="min-w-0">
+                      <div className="truncate text-foreground">
+                        {lang === "am" ? r.m.nameAm : r.m.name}
+                      </div>
+                      <div className="mono truncate text-[9.5px] text-muted-foreground">
+                        {r.m.id}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="mono text-right tabular-nums text-ochre font-semibold">
+                    {r.p}
+                  </span>
+                  <span className="mono text-right tabular-nums text-foreground">{r.a}</span>
+                  <span className="mono text-right tabular-nums text-muted-foreground">{r.e}</span>
+                  <span
+                    className={[
+                      "mono text-right tabular-nums font-semibold",
+                      r.rate >= 75
+                        ? "text-ochre"
+                        : r.rate >= 50
+                        ? "text-foreground"
+                        : "text-destructive",
+                    ].join(" ")}
+                  >
+                    {r.rate.toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-surface px-6 py-3">
+          <div className="mono text-[10px] text-muted-foreground">
+            Range:{" "}
+            <span className="text-foreground font-semibold">{fmtDateShort(rangeStart)}</span> →{" "}
+            <span className="text-foreground font-semibold">{fmtDateShort(rangeEnd)}</span> ·{" "}
+            {dates.length} sessions · {preview.perMember.length} members
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="mono rounded-md border border-border bg-background px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={exporting || dates.length === 0}
+              className={[
+                "mono inline-flex items-center gap-2 rounded-md border border-foreground/10 bg-foreground px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all",
+                exporting || dates.length === 0 ? "opacity-60" : "hover:bg-foreground/90",
+              ].join(" ")}
+            >
+              {exporting ? (
+                <>
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                  Serializing…
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  Download PDF
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: "amber";
+}) {
+  return (
+    <div className="bg-background px-4 py-3">
+      <div className="mono text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={[
+          "mt-1 text-[20px] font-semibold tabular-nums tracking-tight",
+          accent === "amber" ? "text-ochre" : "text-foreground",
+        ].join(" ")}
+      >
+        {value}
+      </div>
     </div>
   );
 }
