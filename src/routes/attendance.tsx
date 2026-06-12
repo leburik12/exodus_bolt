@@ -1,22 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Wifi,
   WifiOff,
-  AlertTriangle,
-  AlertOctagon,
-  Activity,
   MapPin,
   Download,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   Check,
   X,
   Minus,
+  BarChart3,
+  ExternalLink,
+  Search,
 } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, cellGroupCatalog } from "@/lib/mock-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/attendance")({
   head: () => ({
@@ -34,6 +34,7 @@ export const Route = createFileRoute("/attendance")({
 type State = "PRESENT" | "ABSENT" | "EXCUSED" | null;
 
 const CELL_NODES = cellGroupCatalog.map((name, i) => ({
+  id: `c${i}`,
   name: `${name}-0${(i % 6) + 1}`,
   base: name,
   vector: [
@@ -53,7 +54,7 @@ const CELL_NODES = cellGroupCatalog.map((name, i) => ({
     "Tsion Bekele",
   ][i],
   leaderAvatar: ALL[(i * 2) % ALL.length].avatar,
-  capacity: 16,
+  capacity: 24,
 }));
 
 const EPOCHS = [
@@ -77,25 +78,35 @@ function synthState(memberId: string, epochId: string): NonNullable<State> {
 }
 
 function AttendancePage() {
+  const { t, lang } = useI18n();
   const [activeCell, setActiveCell] = useState(0);
   const [epoch, setEpoch] = useState("2026-06-12");
-  const [rangeStart, setRangeStart] = useState("2026-05-01");
-  const [rangeEnd, setRangeEnd] = useState("2026-06-12");
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(0);
   const [focusIdx, setFocusIdx] = useState(0);
   const [states, setStates] = useState<Record<string, Record<string, State>>>({});
   const [exporting, setExporting] = useState(false);
-  const [recalcTick, setRecalcTick] = useState(0);
+  const [search, setSearch] = useState("");
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
-  const roster = useMemo(
-    () => ALL.filter((_, i) => i % CELL_NODES.length === activeCell).slice(0, 14),
+  const fullRoster = useMemo(
+    () => ALL.filter((_, i) => i % CELL_NODES.length === activeCell),
     [activeCell],
   );
+  const roster = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return fullRoster;
+    return fullRoster.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.nameAm.includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.id.toLowerCase().includes(q),
+    );
+  }, [fullRoster, search]);
 
-  const key = `${cellNode.name}::${epoch}`;
+  const key = `${cellNode.id}::${epoch}`;
   const cellStates = states[key] || {};
 
   const setState = useCallback(
@@ -105,53 +116,6 @@ function AttendancePage() {
     },
     [key, online],
   );
-
-  const effective = useCallback(
-    (mid: string, epId: string): NonNullable<State> => {
-      const k = `${cellNode.name}::${epId}`;
-      const committed = states[k]?.[mid];
-      return (committed ?? synthState(mid, epId)) as NonNullable<State>;
-    },
-    [cellNode.name, states],
-  );
-
-  const windowEpochs = useMemo(
-    () => EPOCHS.filter((e) => e.id >= rangeStart && e.id <= rangeEnd),
-    [rangeStart, rangeEnd],
-  );
-
-  const memberAnalytics = useMemo(() => {
-    const map: Record<string, { attn: number; absents: number }> = {};
-    roster.forEach((m) => {
-      let p = 0,
-        a = 0;
-      windowEpochs.forEach((ep) => {
-        const s = effective(m.id, ep.id);
-        if (s === "PRESENT") p++;
-        else if (s === "ABSENT") a++;
-      });
-      const total = windowEpochs.length || 1;
-      map[m.id] = { attn: Math.round((p / total) * 100), absents: a };
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, windowEpochs, effective, recalcTick]);
-
-  const trend = useMemo(() => {
-    return windowEpochs.map((ep) => {
-      let p = 0;
-      roster.forEach((m) => {
-        if (effective(m.id, ep.id) === "PRESENT") p++;
-      });
-      return {
-        label: ep.label,
-        value: roster.length ? p / roster.length : 0,
-        present: p,
-        total: roster.length,
-      };
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roster, windowEpochs, effective, recalcTick]);
 
   const present = roster.filter(
     (m) => (cellStates[m.id] ?? synthState(m.id, epoch)) === "PRESENT",
@@ -206,11 +170,6 @@ function AttendancePage() {
     el?.scrollIntoView({ block: "nearest" });
   }, [focusIdx]);
 
-  useEffect(() => {
-    const t = setTimeout(() => setRecalcTick((n) => n + 1), 50);
-    return () => clearTimeout(t);
-  }, [rangeStart, rangeEnd]);
-
   const triggerExport = () => {
     setExporting(true);
     setTimeout(() => setExporting(false), 1600);
@@ -226,18 +185,26 @@ function AttendancePage() {
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
-                Attendance Telemetry
+                {t("att.title")}
               </h1>
               <p className="mono mt-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Cell Network · Temporal Intake
+                {t("att.subtitle")}
               </p>
             </div>
             <span className="mono hidden items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[10px] text-muted-foreground md:inline-flex">
               <span className="h-1.5 w-1.5 rounded-full bg-amber" />
-              Operator · Kirubel Awoke
+              {t("att.operator")} · Kirubel Awoke
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              to="/cells/$cellId"
+              params={{ cellId: cellNode.id }}
+              className="mono inline-flex items-center gap-1.5 rounded-md border border-amber bg-amber-soft px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground transition-colors hover:bg-amber/30"
+            >
+              <BarChart3 className="h-3 w-3" />
+              {t("att.openCellStats")}
+            </Link>
             <SyncBadge online={online} pending={pending} />
             <button
               onClick={() => {
@@ -252,23 +219,25 @@ function AttendancePage() {
           </div>
         </header>
 
-        {/* 3-pane */}
+        {/* 2-pane */}
         <div
           className="grid flex-1 min-h-0"
-          style={{ gridTemplateColumns: "280px minmax(0,1fr) 320px" }}
+          style={{ gridTemplateColumns: "300px minmax(0,1fr)" }}
         >
           {/* LEFT */}
           <aside className="flex min-h-0 flex-col border-r border-border bg-surface">
-            <SectionHead title="Cell Nodes" tag={`${CELL_NODES.length}`} />
+            <SectionHead title={t("att.cellNodes")} tag={`${CELL_NODES.length}`} />
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {CELL_NODES.map((c, i) => {
                 const active = i === activeCell;
+                const count = ALL.filter((_, idx) => idx % CELL_NODES.length === i).length;
                 return (
                   <button
                     key={c.name}
                     onClick={() => {
                       setActiveCell(i);
                       setFocusIdx(0);
+                      setSearch("");
                     }}
                     className={[
                       "block w-full border-b border-hairline px-3.5 py-3 text-left transition-colors",
@@ -281,11 +250,9 @@ function AttendancePage() {
                       <div className="mono text-[11.5px] font-semibold uppercase tracking-wider text-foreground">
                         {c.name}
                       </div>
-                      {active && (
-                        <span className="mono rounded-full bg-amber/20 px-1.5 py-px text-[8.5px] font-semibold uppercase tracking-wider text-ochre">
-                          Active
-                        </span>
-                      )}
+                      <span className="mono rounded-full border border-border bg-background px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {count}
+                      </span>
                     </div>
                     <div className="mt-1 flex items-center gap-1 text-[10.5px] text-muted-foreground">
                       <MapPin className="h-3 w-3 shrink-0" />
@@ -295,7 +262,7 @@ function AttendancePage() {
                       <Avatar src={c.leaderAvatar} alt={c.leader} size={18} />
                       <span className="text-[11px] text-foreground">{c.leader}</span>
                       <span className="mono ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">
-                        Lead
+                        {t("att.lead")}
                       </span>
                     </div>
                   </button>
@@ -307,7 +274,7 @@ function AttendancePage() {
             <div className="border-t border-border bg-background">
               <div className="flex items-center justify-between border-b border-hairline px-3.5 py-2">
                 <div className="mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
-                  Chronological Horizon
+                  {t("att.horizon")}
                 </div>
                 <div className="flex items-center gap-0.5">
                   <button
@@ -326,7 +293,6 @@ function AttendancePage() {
                   </button>
                 </div>
               </div>
-
               <div className="px-3.5 py-2.5">
                 <div className="flex gap-1 overflow-x-auto scrollbar-thin pb-1">
                   {EPOCHS.map((ep) => {
@@ -349,42 +315,6 @@ function AttendancePage() {
                   })}
                 </div>
               </div>
-
-              <div className="border-t border-hairline px-3.5 py-2.5">
-                <div className="mb-1.5 flex items-baseline justify-between">
-                  <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Analytics Window
-                  </span>
-                  <span className="mono text-[10px] font-semibold text-foreground">
-                    {windowEpochs.length} epochs
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <label className="block">
-                    <span className="mono block text-[9px] uppercase tracking-wider text-muted-foreground">
-                      Start
-                    </span>
-                    <input
-                      type="date"
-                      value={rangeStart}
-                      onChange={(e) => setRangeStart(e.target.value)}
-                      className="mono mt-0.5 w-full rounded-md border border-border bg-surface px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mono block text-[9px] uppercase tracking-wider text-muted-foreground">
-                      End
-                    </span>
-                    <input
-                      type="date"
-                      value={rangeEnd}
-                      onChange={(e) => setRangeEnd(e.target.value)}
-                      className="mono mt-0.5 w-full rounded-md border border-border bg-surface px-1.5 py-1 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
-                    />
-                  </label>
-                </div>
-              </div>
-
               <div className="border-t border-hairline p-3">
                 <button
                   onClick={triggerExport}
@@ -397,12 +327,12 @@ function AttendancePage() {
                   {exporting ? (
                     <>
                       <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      Serializing…
+                      {t("att.serializing")}
                     </>
                   ) : (
                     <>
                       <Download className="h-3.5 w-3.5" />
-                      Export Matrix · PDF
+                      {t("att.export")}
                     </>
                   )}
                 </button>
@@ -412,44 +342,81 @@ function AttendancePage() {
 
           {/* CENTER */}
           <section className="flex min-h-0 flex-col bg-background">
-            <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-2.5">
-              <div>
-                <div className="text-[13px] font-semibold tracking-tight text-foreground">
-                  {cellNode.name}
-                  <span className="ml-2 text-muted-foreground font-normal">·</span>
-                  <span className="ml-2 mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                    State Commits
+            <div className="flex items-center justify-between gap-4 border-b border-border bg-surface px-5 py-2.5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-foreground">
+                  <span>{cellNode.name}</span>
+                  <span className="text-muted-foreground font-normal">·</span>
+                  <span className="mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {t("att.stateCommits")}
                   </span>
                 </div>
                 <div className="mono mt-0.5 text-[10px] text-muted-foreground">
                   {activeEpoch?.full}
                 </div>
               </div>
-              <div className="mono flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span>
-                  <span className="text-foreground font-semibold">{committed}</span>
-                  <span className="opacity-50"> / </span>
-                  {roster.length} committed
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setFocusIdx(0);
+                    }}
+                    placeholder={t("common.search")}
+                    className="mono h-7 w-56 rounded-md border border-border bg-background pl-7 pr-2 text-[11px] text-foreground placeholder:text-muted-foreground focus:border-amber focus:outline-none"
+                  />
+                </div>
+                <div className="mono flex items-center gap-3 text-[10px]">
+                  <Stat label={t("att.present")} value={present} accent="amber" />
+                  <Stat label={t("att.absent")} value={absent} />
+                  <Stat label={t("att.excused")} value={excused} />
+                  <span className="text-muted-foreground">
+                    <span className="text-foreground font-semibold">{committed}</span>
+                    <span className="opacity-50">/</span>
+                    {roster.length} {t("att.committed")}
+                  </span>
+                </div>
               </div>
+            </div>
+
+            {/* Quorum bar */}
+            <div className="flex items-center gap-3 border-b border-hairline bg-surface/60 px-5 py-1.5">
+              <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {t("stats.quorum")}
+              </span>
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-gradient-to-r from-amber to-ochre transition-all"
+                  style={{ width: `${quorum}%` }}
+                />
+              </div>
+              <span className="mono w-12 text-right text-[11px] font-semibold text-foreground tabular-nums">
+                {quorum.toFixed(1)}%
+              </span>
             </div>
 
             <div
               className="mono grid items-center gap-3 border-b border-border bg-background/60 px-5 py-2 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground"
-              style={{ gridTemplateColumns: "28px 1.6fr 1.2fr 220px" }}
+              style={{ gridTemplateColumns: "28px 1.6fr 1.4fr 88px 240px" }}
             >
               <span className="text-right">#</span>
-              <span>Member · Telemetry</span>
-              <span>Contact</span>
-              <span className="text-center">State Commit</span>
+              <span>{t("att.member")}</span>
+              <span>{t("att.contact")}</span>
+              <span className="text-center">Profile</span>
+              <span className="text-center">{t("att.commit")}</span>
             </div>
 
             <div ref={gridRef} className="flex-1 overflow-y-auto scrollbar-thin">
+              {roster.length === 0 && (
+                <div className="mono p-8 text-center text-[11px] text-muted-foreground">
+                  No members match "{search}"
+                </div>
+              )}
               {roster.map((m, i) => {
                 const st = (cellStates[m.id] ?? synthState(m.id, epoch)) as State;
                 const focused = i === focusIdx;
-                const ana = memberAnalytics[m.id] || { attn: 0, absents: 0 };
-                const breach = ana.absents >= 3;
                 return (
                   <div
                     key={m.id}
@@ -458,9 +425,8 @@ function AttendancePage() {
                     className={[
                       "group grid cursor-pointer items-center gap-3 border-b border-hairline px-5 py-2.5 transition-colors",
                       focused ? "bg-amber-soft/50" : "hover:bg-muted/40",
-                      st === "ABSENT" ? "opacity-75" : "",
                     ].join(" ")}
-                    style={{ gridTemplateColumns: "28px 1.6fr 1.2fr 220px" }}
+                    style={{ gridTemplateColumns: "28px 1.6fr 1.4fr 88px 240px" }}
                   >
                     <span className="mono text-right text-[10px] text-muted-foreground">
                       {(i + 1).toString().padStart(2, "0")}
@@ -470,36 +436,31 @@ function AttendancePage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="truncate text-[12.5px] font-semibold text-foreground">
-                            {m.name}
+                            {lang === "am" ? m.nameAm : m.name}
                           </span>
                           <span className="mono shrink-0 rounded-sm bg-foreground/8 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-foreground">
-                            {m.gifts[0]?.name}
+                            {m.id}
                           </span>
                         </div>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          <span className="truncate text-[10.5px] text-muted-foreground">
-                            {m.occupation}
-                          </span>
-                          <span
-                            className={[
-                              "mono inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider",
-                              breach
-                                ? "bg-ochre/15 text-ochre"
-                                : "bg-muted text-muted-foreground",
-                            ].join(" ")}
-                            title={`${windowEpochs.length}-epoch window`}
-                          >
-                            {breach && <AlertCircle className="h-2.5 w-2.5" />}
-                            ATTN {ana.attn}%
-                            <span className="opacity-50">·</span>
-                            ABS {ana.absents}
-                          </span>
+                        <div className="mt-0.5 truncate text-[10.5px] text-muted-foreground">
+                          {m.occupation} · {m.zone}
                         </div>
                       </div>
                     </div>
                     <div className="mono min-w-0">
                       <div className="truncate text-[10.5px] text-foreground">{m.email}</div>
                       <div className="truncate text-[10px] text-muted-foreground">{m.phone}</div>
+                    </div>
+                    <div className="flex justify-center">
+                      <Link
+                        to="/members/$memberId"
+                        params={{ memberId: m.id }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mono inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-[9.5px] font-semibold uppercase tracking-wider text-foreground hover:border-amber hover:bg-amber-soft"
+                      >
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        {t("att.viewProfile")}
+                      </Link>
                     </div>
                     <TriToggle value={st} onChange={(v) => setState(m.id, v)} />
                   </div>
@@ -511,9 +472,9 @@ function AttendancePage() {
               <div className="flex items-center gap-3">
                 <Key k="←→" l="Epoch" />
                 <Key k="↑↓" l="Navigate" />
-                <Key k="P" l="Present" />
-                <Key k="A" l="Absent" />
-                <Key k="E" l="Excused" />
+                <Key k="P" l={t("att.present")} />
+                <Key k="A" l={t("att.absent")} />
+                <Key k="E" l={t("att.excused")} />
               </div>
               <span>
                 Focus row{" "}
@@ -524,102 +485,6 @@ function AttendancePage() {
               </span>
             </div>
           </section>
-
-          {/* RIGHT */}
-          <aside className="flex min-h-0 flex-col border-l border-border bg-surface">
-            <SectionHead title="Network Analytics" tag="Live" />
-
-            <div className="grid grid-cols-3 gap-2 border-b border-border p-3">
-              <CohortBlock label="Present" value={present} variant="amber" />
-              <CohortBlock label="Absent" value={absent} variant="muted" />
-              <CohortBlock label="Excused" value={excused} variant="dashed" />
-            </div>
-
-            <div className="border-b border-border p-3">
-              <div className="flex items-baseline justify-between">
-                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Active Quorum
-                </span>
-                <span className="mono text-[10px] text-muted-foreground">
-                  {committed}/{roster.length}
-                </span>
-              </div>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-[40px] font-semibold leading-none tracking-tight text-foreground tabular-nums">
-                  {quorum.toFixed(1)}
-                </span>
-                <span className="text-[14px] text-muted-foreground">%</span>
-                <span
-                  className={[
-                    "mono ml-auto rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                    quorum >= 80
-                      ? "bg-emerald-500/15 text-emerald-700"
-                      : quorum >= 60
-                      ? "bg-amber/20 text-ochre"
-                      : "bg-destructive/15 text-destructive",
-                  ].join(" ")}
-                >
-                  {quorum >= 80 ? "Above Baseline" : quorum >= 60 ? "Watch" : "Breach"}
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-gradient-to-r from-amber to-ochre transition-all"
-                  style={{ width: `${quorum}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="border-b border-border p-3">
-              <div className="mb-1.5 flex items-baseline justify-between">
-                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Trend Canvas
-                </span>
-                <span className="mono text-[10px] text-muted-foreground">
-                  {windowEpochs.length} epochs
-                </span>
-              </div>
-              <TrendCanvas data={trend} />
-            </div>
-
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                <span className="mono text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Flag Stream
-                </span>
-                <span className="mono text-[9px] text-muted-foreground">RT · 50ms</span>
-              </div>
-              <div className="flex-1 overflow-y-auto scrollbar-thin">
-                {Object.entries(memberAnalytics)
-                  .filter(([, v]) => v.absents >= 3)
-                  .slice(0, 3)
-                  .map(([mid, v]) => {
-                    const m = roster.find((r) => r.id === mid);
-                    if (!m) return null;
-                    return (
-                      <Flag
-                        key={mid}
-                        severity="critical"
-                        tag="Retention Breach"
-                        body={`${m.name} — ${v.absents} absences across ${windowEpochs.length}-epoch window. Pastoral escalation advised.`}
-                      />
-                    );
-                  })}
-                <Flag
-                  severity="warn"
-                  tag="Structural Imbalance"
-                  body={`${cellNode.name} density at ${Math.round(
-                    (roster.length / cellNode.capacity) * 100,
-                  )}% — drifting toward optimal ceiling.`}
-                />
-                <Flag
-                  severity="info"
-                  tag="Quorum Baseline"
-                  body={`Quorum ${quorum.toFixed(1)}% vs 80% baseline for ${cellNode.base}.`}
-                />
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
     </AppShell>
@@ -638,6 +503,22 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
         </span>
       )}
     </div>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent?: "amber" }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span
+        className={[
+          "text-[13px] font-semibold tabular-nums",
+          accent === "amber" ? "text-ochre" : "text-foreground",
+        ].join(" ")}
+      >
+        {value}
+      </span>
+    </span>
   );
 }
 
@@ -685,136 +566,6 @@ function TriToggle({ value, onChange }: { value: State; onChange: (v: State) => 
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function CohortBlock({
-  label,
-  value,
-  variant,
-}: {
-  label: string;
-  value: number;
-  variant: "amber" | "muted" | "dashed";
-}) {
-  const cls =
-    variant === "amber"
-      ? "border-amber/50 bg-amber-soft/50"
-      : variant === "dashed"
-      ? "border-border [border-style:dashed] bg-background"
-      : "border-border bg-background";
-  const valueCls =
-    variant === "amber"
-      ? "text-ochre"
-      : variant === "muted"
-      ? "text-foreground"
-      : "text-foreground";
-  return (
-    <div className={`rounded-md border px-2.5 py-2 ${cls}`}>
-      <div className="mono text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className={`mt-0.5 text-[24px] font-semibold leading-none tracking-tight tabular-nums ${valueCls}`}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TrendCanvas({
-  data,
-}: {
-  data: { label: string; value: number; present: number; total: number }[];
-}) {
-  const w = 280,
-    h = 96,
-    pad = 14;
-  if (data.length === 0) {
-    return (
-      <div className="mono py-6 text-center text-[10px] text-muted-foreground">
-        No data in window
-      </div>
-    );
-  }
-  const innerW = w - pad * 2,
-    innerH = h - pad - 20;
-  const bw = innerW / data.length;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-24 w-full">
-      <defs>
-        <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="oklch(0.83 0.17 84)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="oklch(0.83 0.17 84)" stopOpacity="0.1" />
-        </linearGradient>
-      </defs>
-      <line
-        x1={pad}
-        x2={w - pad}
-        y1={h - 20}
-        y2={h - 20}
-        stroke="oklch(0.92 0.005 270)"
-        strokeWidth="1"
-      />
-      {data.map((d, i) => {
-        const bh = Math.max(2, d.value * innerH);
-        const x = pad + i * bw + 3;
-        const y = h - 20 - bh;
-        const bwInner = Math.max(4, bw - 6);
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={bwInner} height={bh} fill="url(#trendFill)" rx="2" />
-            <rect x={x} y={y} width={bwInner} height={1.5} fill="oklch(0.68 0.16 60)" />
-            <text
-              x={x + bwInner / 2}
-              y={h - 6}
-              textAnchor="middle"
-              className="mono"
-              fontSize="8"
-              fill="oklch(0.5 0.01 270)"
-            >
-              {d.label}
-            </text>
-            <text
-              x={x + bwInner / 2}
-              y={y - 3}
-              textAnchor="middle"
-              className="mono"
-              fontSize="8"
-              fontWeight="600"
-              fill="oklch(0.16 0.01 270)"
-            >
-              {Math.round(d.value * 100)}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function Flag({
-  severity,
-  tag,
-  body,
-}: {
-  severity: "critical" | "warn" | "info";
-  tag: string;
-  body: string;
-}) {
-  const cfg = {
-    critical: { Icon: AlertOctagon, color: "text-destructive", bar: "bg-destructive" },
-    warn: { Icon: AlertTriangle, color: "text-ochre", bar: "bg-ochre" },
-    info: { Icon: Activity, color: "text-foreground", bar: "bg-foreground/60" },
-  }[severity];
-  const Icon = cfg.Icon;
-  return (
-    <div className="relative border-b border-hairline px-3 py-2.5 pl-4">
-      <span className={`absolute left-0 top-0 h-full w-[3px] ${cfg.bar}`} />
-      <div className={`mono flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-wider ${cfg.color}`}>
-        <Icon className="h-3 w-3" /> {tag}
-      </div>
-      <p className="mt-1 text-[11px] leading-snug text-foreground">{body}</p>
     </div>
   );
 }
