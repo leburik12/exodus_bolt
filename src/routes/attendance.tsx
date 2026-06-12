@@ -391,27 +391,37 @@ function AttendancePage() {
                     );
                   })}
                 </div>
+                {/* Session Date Picker */}
+                <div className="mt-2.5 rounded-md border border-border bg-surface px-2 py-2">
+                  <div className="mono flex items-center justify-between pb-1.5">
+                    <span className="text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Session Date
+                    </span>
+                    <button
+                      onClick={() => setEpoch(todayIso())}
+                      className="mono rounded border border-border bg-background px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-foreground hover:border-amber"
+                    >
+                      Today
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="date"
+                      value={epoch}
+                      onChange={(e) => setEpoch(e.target.value)}
+                      className="mono h-7 w-full rounded-md border border-border bg-background pl-7 pr-2 text-[10.5px] text-foreground focus:border-amber focus:outline-none"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="border-t border-hairline p-3">
                 <button
-                  onClick={triggerExport}
-                  disabled={exporting}
-                  className={[
-                    "mono inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all",
-                    exporting ? "opacity-80" : "hover:bg-foreground/90",
-                  ].join(" ")}
+                  onClick={() => setExportOpen(true)}
+                  className="mono inline-flex w-full items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-background transition-all hover:bg-foreground/90"
                 >
-                  {exporting ? (
-                    <>
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                      {t("att.serializing")}
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-3.5 w-3.5" />
-                      {t("att.export")}
-                    </>
-                  )}
+                  <Download className="h-3.5 w-3.5" />
+                  {t("att.export")}
                 </button>
               </div>
             </div>
