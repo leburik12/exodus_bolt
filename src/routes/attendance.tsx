@@ -206,10 +206,53 @@ function AttendancePage() {
 
   const triggerExport = () => {
     setExporting(true);
-    setTimeout(() => setExporting(false), 1600);
+    setTimeout(() => {
+      setExporting(false);
+      setExportOpen(false);
+    }, 1400);
   };
 
-  const activeEpoch = EPOCHS.find((e) => e.id === epoch);
+  const activeEpoch = EPOCHS.find((e) => e.id === epoch) ?? {
+    id: epoch,
+    label: fmtDateShort(epoch),
+    full: fmtDateLong(epoch),
+  };
+
+  // Aggregated export preview: per-session totals + per-member tallies across range
+  const exportDates = useMemo(() => datesInRange(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
+  const exportPreview = useMemo(() => {
+    const perSession = exportDates.map((d) => {
+      let p = 0, a = 0, e = 0;
+      for (const m of fullRoster) {
+        const k = `${cellNode.id}::${d}`;
+        const st = states[k]?.[m.id] ?? synthState(m.id, d);
+        if (st === "PRESENT") p++;
+        else if (st === "ABSENT") a++;
+        else e++;
+      }
+      return { date: d, p, a, e, total: fullRoster.length };
+    });
+    const perMember = fullRoster.map((m) => {
+      let p = 0, a = 0, e = 0;
+      for (const d of exportDates) {
+        const k = `${cellNode.id}::${d}`;
+        const st = states[k]?.[m.id] ?? synthState(m.id, d);
+        if (st === "PRESENT") p++;
+        else if (st === "ABSENT") a++;
+        else e++;
+      }
+      const rate = exportDates.length ? (p / exportDates.length) * 100 : 0;
+      return { m, p, a, e, rate };
+    });
+    const totals = perSession.reduce(
+      (acc, s) => ({ p: acc.p + s.p, a: acc.a + s.a, e: acc.e + s.e }),
+      { p: 0, a: 0, e: 0 },
+    );
+    const totalSlots = fullRoster.length * exportDates.length;
+    const avgRate = totalSlots ? (totals.p / totalSlots) * 100 : 0;
+    return { perSession, perMember, totals, avgRate, totalSlots };
+  }, [exportDates, fullRoster, cellNode.id, states]);
+
 
   return (
     <AppShell>
