@@ -79,6 +79,35 @@ function synthState(memberId: string, epochId: string): NonNullable<State> {
   return "EXCUSED";
 }
 
+function fmtDateLong(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+function fmtDateShort(iso: string) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+}
+function datesInRange(startIso: string, endIso: string): string[] {
+  if (!startIso || !endIso) return [];
+  const out: string[] = [];
+  const s = new Date(startIso + "T00:00:00");
+  const e = new Date(endIso + "T00:00:00");
+  if (e < s) return [];
+  // cap to 60 days to avoid pathological loops
+  for (let i = 0, d = new Date(s); d <= e && i < 60; i++, d.setDate(d.getDate() + 1)) {
+    out.push(d.toISOString().slice(0, 10));
+  }
+  return out;
+}
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function AttendancePage() {
   const { t, lang } = useI18n();
   const [activeCell, setActiveCell] = useState(0);
