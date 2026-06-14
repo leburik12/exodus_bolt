@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Search, Command, Plus, Upload, ChevronDown, Filter, Download, Archive, FolderInput } from "lucide-react";
+import { Search, Command, Plus, Upload, Filter, Download, Archive, FolderInput } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, giftCatalog } from "@/lib/mock-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/")({
 });
 
 function MembersPage() {
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [filters] = useState([
     { k: "Status", v: "Married" },
@@ -78,15 +80,15 @@ function MembersPage() {
           <div className="flex flex-col gap-3 border-b border-border bg-surface px-5 py-3">
             <div className="flex items-center justify-between gap-3">
               <h1 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">
-                ZETSEAT // <span className="text-muted-foreground">MEMBER_GRAPH_ENGINE</span>
+                ZETSEAT // <span className="text-muted-foreground">{t("mb.title").toUpperCase().replace(/ /g,"_")}</span>
               </h1>
               <div className="flex items-center gap-2">
                 <button className="mono inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted">
-                  <Filter className="h-3.5 w-3.5" /> FILTER
+                  <Filter className="h-3.5 w-3.5" /> {t("mb.filter").toUpperCase()}
                 </button>
-                <button className="mono inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-background hover:opacity-90">
-                  <Plus className="h-3.5 w-3.5" /> N · New Member
-                </button>
+                <Link to="/members/new" className="mono inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-background hover:opacity-90">
+                  <Plus className="h-3.5 w-3.5" /> N · {t("mb.new")}
+                </Link>
               </div>
             </div>
             {/* Omnisearch */}
@@ -96,7 +98,7 @@ function MembersPage() {
                 ref={searchRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search members, ids, gifts, occupations…"
+                placeholder={t("mb.search")}
                 className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-24 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/30"
               />
               <kbd className="mono absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
