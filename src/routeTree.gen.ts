@@ -15,7 +15,6 @@ import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersNewRouteImport } from './routes/members.new'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
-import { Route as MembersNewRouteImport } from './routes/members.new'
 import { Route as CellsCellIdRouteImport } from './routes/cells.$cellId'
 
 const TalentsRoute = TalentsRouteImport.update({
@@ -46,11 +45,6 @@ const MembersNewRoute = MembersNewRouteImport.update({
 const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   id: '/members/$memberId',
   path: '/members/$memberId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MembersNewRoute = MembersNewRouteImport.update({
-  id: '/members/new',
-  path: '/members/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CellsCellIdRoute = CellsCellIdRouteImport.update({
@@ -168,13 +162,6 @@ declare module '@tanstack/react-router' {
       path: '/members/$memberId'
       fullPath: '/members/$memberId'
       preLoaderRoute: typeof MembersMemberIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/members/new': {
-      id: '/members/new'
-      path: '/members/new'
-      fullPath: '/members/new'
-      preLoaderRoute: typeof MembersNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cells/$cellId': {
