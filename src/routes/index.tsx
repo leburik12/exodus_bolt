@@ -371,3 +371,30 @@ function KV({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
     </>
   );
 }
+
+function FilterGroup({ title, options, value, onToggle }: { title: string; options: readonly string[]; value: string[]; onToggle: (v: string) => void }) {
+  return (
+    <div className="border-t border-hairline py-2 first:border-t-0">
+      <div className="mono mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+      <div className="flex flex-wrap gap-1">
+        {options.map((o) => {
+          const on = value.includes(o);
+          return (
+            <button
+              key={o}
+              onClick={() => onToggle(o)}
+              className={[
+                "mono rounded-md border px-2 py-1 text-[10.5px] font-medium transition-colors",
+                on
+                  ? "border-amber/50 bg-amber-soft text-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-amber/40 hover:text-foreground",
+              ].join(" ")}
+            >
+              {o}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
