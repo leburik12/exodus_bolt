@@ -110,9 +110,34 @@ function MembersPage() {
                 ZETSEAT // <span className="text-muted-foreground">{t("mb.title").toUpperCase().replace(/ /g,"_")}</span>
               </h1>
               <div className="flex items-center gap-2">
-                <button className="mono inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted">
-                  <Filter className="h-3.5 w-3.5" /> {t("mb.filter").toUpperCase()}
-                </button>
+                <div ref={filterRef} className="relative">
+                  <button
+                    onClick={() => setFilterOpen((v) => !v)}
+                    className={[
+                      "mono inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                      activeFacets > 0
+                        ? "border-amber/50 bg-amber-soft text-foreground"
+                        : "border-border bg-surface text-foreground hover:bg-muted",
+                    ].join(" ")}
+                  >
+                    <Filter className="h-3.5 w-3.5" /> {t("mb.filter").toUpperCase()}
+                    {activeFacets > 0 && (
+                      <span className="mono rounded-sm bg-foreground px-1 text-[9px] font-bold text-background">{activeFacets}</span>
+                    )}
+                  </button>
+                  {filterOpen && (
+                    <div className="absolute right-0 top-full z-30 mt-1 w-[360px] rounded-lg border border-border bg-popover p-3 shadow-xl">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Filter facets</span>
+                        <button onClick={clearAll} className="mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground">Clear all</button>
+                      </div>
+                      <FilterGroup title="Marital Status" options={STATUS_OPTIONS as readonly string[]} value={fStatus} onToggle={(v) => toggleArr(setFStatus, fStatus, v)} />
+                      <FilterGroup title="Zone" options={ZONE_OPTIONS} value={fZone} onToggle={(v) => toggleArr(setFZone, fZone, v)} />
+                      <FilterGroup title="Cell Group" options={cellGroupCatalog} value={fCell} onToggle={(v) => toggleArr(setFCell, fCell, v)} />
+                      <FilterGroup title="Spiritual Gift" options={giftCatalog} value={fGift} onToggle={(v) => toggleArr(setFGift, fGift, v)} />
+                    </div>
+                  )}
+                </div>
                 <Link to="/members/new" className="mono inline-flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-background hover:opacity-90">
                   <Plus className="h-3.5 w-3.5" /> N · {t("mb.new")}
                 </Link>
@@ -132,16 +157,29 @@ function MembersPage() {
                 <Command className="h-3 w-3" /> K
               </kbd>
             </div>
-            {/* Filter pills */}
+            {/* Active filter pills */}
             <div className="flex flex-wrap items-center gap-1.5">
-              {filters.map((f) => (
-                <span key={f.k} className="mono inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber-soft px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-foreground">
+              {[
+                ...fStatus.map((v) => ({ k: "Status", v, clear: () => setFStatus(fStatus.filter((x) => x !== v)) })),
+                ...fZone.map((v) => ({ k: "Zone", v, clear: () => setFZone(fZone.filter((x) => x !== v)) })),
+                ...fCell.map((v) => ({ k: "Cell", v, clear: () => setFCell(fCell.filter((x) => x !== v)) })),
+                ...fGift.map((v) => ({ k: "Gift", v, clear: () => setFGift(fGift.filter((x) => x !== v)) })),
+              ].map((f, i) => (
+                <button
+                  key={`${f.k}-${f.v}-${i}`}
+                  onClick={f.clear}
+                  className="mono group inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber-soft px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-foreground hover:border-amber"
+                >
                   <span className="text-muted-foreground">{f.k}:</span> {f.v}
-                </span>
+                  <X className="h-2.5 w-2.5 opacity-50 group-hover:opacity-100" />
+                </button>
               ))}
-              <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">· 3 active facets</span>
+              <span className="mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                · {activeFacets} active {activeFacets === 1 ? "facet" : "facets"}
+              </span>
             </div>
           </div>
+
 
           {/* Table */}
           <div className="relative flex-1 overflow-auto scrollbar-thin">
