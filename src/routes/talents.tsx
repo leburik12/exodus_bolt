@@ -40,6 +40,7 @@ const seedRecs: Rec[] = [
 ];
 
 function TalentsPage() {
+  const { t, lang } = useI18n();
   // form state
   const [target, setTarget] = useState<typeof ALL[number] | null>(null);
   const [picker, setPicker] = useState("");
