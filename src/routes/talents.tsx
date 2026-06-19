@@ -80,7 +80,7 @@ function TalentsPage() {
         <section className="flex min-h-0 flex-col border-r border-border bg-background">
           <header className="border-b border-border bg-surface px-5 py-3">
             <h1 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">
-              EMERGING_TALENT // <span className="text-muted-foreground">SUBMIT_RECOMMENDATION</span>
+              {t("tl.title").toUpperCase().replace(/ /g,"_")} // <span className="text-muted-foreground">{t("tl.subtitle").toUpperCase().replace(/ /g,"_")}</span>
             </h1>
           </header>
           <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
