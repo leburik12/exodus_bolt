@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Search, Command, Plus, Upload, Filter, Download, Archive, FolderInput } from "lucide-react";
+import { Search, Command, Plus, Upload, Filter, Download, Archive, FolderInput, X } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
-import { members as ALL, giftCatalog } from "@/lib/mock-data";
+import { members as ALL, giftCatalog, cellGroupCatalog } from "@/lib/mock-data";
 import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
@@ -15,29 +15,45 @@ export const Route = createFileRoute("/")({
   component: MembersPage,
 });
 
+const STATUS_OPTIONS = ["Single", "Married", "Engaged", "Widowed"] as const;
+const ZONE_OPTIONS = Array.from(new Set(ALL.map((m) => m.zone)));
+
 function MembersPage() {
   const { t } = useI18n();
   const [q, setQ] = useState("");
-  const [filters] = useState([
-    { k: "Status", v: "Married" },
-    { k: "Gift", v: "Discernment" },
-    { k: "Zone", v: "Bole" },
-  ]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [fStatus, setFStatus] = useState<string[]>([]);
+  const [fZone, setFZone] = useState<string[]>([]);
+  const [fGift, setFGift] = useState<string[]>([]);
+  const [fCell, setFCell] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [focusIdx, setFocusIdx] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const filterRef = useRef<HTMLDivElement>(null);
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return ALL;
-    return ALL.filter(
-      (m) =>
+    return ALL.filter((m) => {
+      if (term && !(
         m.name.toLowerCase().includes(term) ||
         m.email.toLowerCase().includes(term) ||
         m.id.toLowerCase().includes(term) ||
-        m.occupation.toLowerCase().includes(term),
-    );
-  }, [q]);
+        m.occupation.toLowerCase().includes(term)
+      )) return false;
+      if (fStatus.length && !fStatus.includes(m.maritalStatus)) return false;
+      if (fZone.length && !fZone.includes(m.zone)) return false;
+      if (fCell.length && !fCell.includes(m.cellGroup)) return false;
+      if (fGift.length && !m.gifts.some((g) => fGift.includes(g.name))) return false;
+      return true;
+    });
+  }, [q, fStatus, fZone, fGift, fCell]);
+
+  useEffect(() => { setFocusIdx(0); }, [q, fStatus, fZone, fGift, fCell]);
+
+  const activeFacets = fStatus.length + fZone.length + fGift.length + fCell.length;
+  const clearAll = () => { setFStatus([]); setFZone([]); setFGift([]); setFCell([]); };
+  const toggleArr = (setter: (v: string[]) => void, arr: string[], v: string) =>
+    setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   const active = rows[focusIdx] ?? rows[0];
 
@@ -55,11 +71,21 @@ function MembersPage() {
       } else if (e.key === "ArrowUp" && document.activeElement?.tagName !== "INPUT") {
         e.preventDefault();
         setFocusIdx((i) => Math.max(0, i - 1));
+      } else if (e.key === "Escape") {
+        setFilterOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [rows.length]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (filterOpen && filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [filterOpen]);
 
   const toggleAll = () => {
     if (selected.size === rows.length) setSelected(new Set());
@@ -70,6 +96,7 @@ function MembersPage() {
     next.has(id) ? next.delete(id) : next.add(id);
     setSelected(next);
   };
+
 
   return (
     <AppShell>
