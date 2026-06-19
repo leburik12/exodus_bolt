@@ -1,13 +1,19 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Users, Network, ScanLine, Sparkles, Command, Languages } from "lucide-react";
-import type { ReactNode } from "react";
-// import logo from "@/assets/zetseat_logo.jpg.asset.json";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Users, Network, ScanLine, Sparkles, Command, Languages, LogOut } from "lucide-react";
+import { useEffect, type ReactNode } from "react";
 import logo from "@/assets/zetseat_logo.jpg?url";
 import { useI18n } from "@/lib/i18n";
+import { useAuth, ROLE_LABELS } from "@/lib/auth";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { lang, setLang, t } = useI18n();
+  const { user, ready, logout } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (ready && !user) navigate({ to: "/auth" });
+  }, [ready, user, navigate]);
 
   const nav = [
     { to: "/", label: t("nav.members"), code: "MBR", icon: Users },
@@ -15,6 +21,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/attendance", label: t("nav.attendance"), code: "ATD", icon: ScanLine },
     { to: "/talents", label: t("nav.talents"), code: "TLT", icon: Sparkles },
   ];
+
+  if (!ready || !user) {
+    return (
+      <div className="grid h-screen w-full place-items-center bg-background text-muted-foreground">
+        <div className="mono text-[11px] uppercase tracking-[0.22em]">Authenticating session…</div>
+      </div>
+    );
+  }
+
+  const initials = user.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "OP";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
@@ -57,6 +73,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="mono absolute -top-1 -right-1 rounded-sm bg-foreground px-1 text-[8px] font-bold uppercase text-background">
               {lang}
             </span>
+          </button>
+          <div
+            className="group relative grid h-9 w-9 place-items-center rounded-md bg-amber text-foreground"
+            title={`${user.name} · ${ROLE_LABELS[user.role][lang]}`}
+          >
+            <span className="mono text-[10px] font-bold tracking-wider">{initials}</span>
+            <span className="mono absolute left-full ml-3 z-50 hidden whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-[10px] uppercase tracking-wide text-foreground shadow-sm group-hover:block">
+              {user.name} · {ROLE_LABELS[user.role][lang]}
+            </span>
+          </div>
+          <button
+            onClick={() => { logout(); navigate({ to: "/auth" }); }}
+            className="group relative grid h-9 w-9 place-items-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title={lang === "en" ? "Sign out" : "ውጣ"}
+          >
+            <LogOut className="h-3.5 w-3.5" />
           </button>
           <div className="mono flex flex-col items-center gap-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
             <Command className="h-3.5 w-3.5" />

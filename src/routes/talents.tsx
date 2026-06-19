@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Search, X, ArrowRight, Check, Loader2 } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, giftCatalog } from "@/lib/mock-data";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/talents")({
   head: () => ({
@@ -39,6 +40,7 @@ const seedRecs: Rec[] = [
 ];
 
 function TalentsPage() {
+  const { t, lang } = useI18n();
   // form state
   const [target, setTarget] = useState<typeof ALL[number] | null>(null);
   const [picker, setPicker] = useState("");
@@ -78,18 +80,18 @@ function TalentsPage() {
         <section className="flex min-h-0 flex-col border-r border-border bg-background">
           <header className="border-b border-border bg-surface px-5 py-3">
             <h1 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">
-              EMERGING_TALENT // <span className="text-muted-foreground">SUBMIT_RECOMMENDATION</span>
+              {t("tl.title").toUpperCase().replace(/ /g,"_")} // <span className="text-muted-foreground">{t("tl.subtitle").toUpperCase().replace(/ /g,"_")}</span>
             </h1>
           </header>
           <div className="flex-1 overflow-y-auto p-5 scrollbar-thin">
             <div className="space-y-5 rounded-xl border border-border bg-surface p-6">
               {/* Target picker */}
-              <Field label="TARGET NODE">
+              <Field label={t("tl.targetNode").toUpperCase()}>
                 {target ? (
                   <div className="flex items-center gap-2 rounded-md border border-amber/50 bg-amber-soft px-2 py-1.5">
                     <Avatar src={target.avatar} alt={target.name} size={28} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-medium text-foreground">{target.name}</div>
+                      <div className="truncate text-[13px] font-medium text-foreground">{lang === "am" ? target.nameAm : target.name}</div>
                       <div className="mono truncate text-[10.5px] text-muted-foreground">{target.id} · {target.cellGroup}</div>
                     </div>
                     <button onClick={() => setTarget(null)} className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"><X className="h-4 w-4" /></button>
@@ -100,7 +102,7 @@ function TalentsPage() {
                     <input
                       value={picker}
                       onChange={(e) => setPicker(e.target.value)}
-                      placeholder="Search member by name…"
+                      placeholder={t("tl.searchMember")}
                       className="w-full rounded-md border border-border bg-background py-2 pl-9 pr-3 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/30"
                     />
                     {searchHits.length > 0 && (
@@ -113,7 +115,7 @@ function TalentsPage() {
                           >
                             <Avatar src={m.avatar} alt={m.name} size={26} />
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-[12.5px] font-medium text-foreground">{m.name}</div>
+                              <div className="truncate text-[12.5px] font-medium text-foreground">{lang === "am" ? m.nameAm : m.name}</div>
                               <div className="mono truncate text-[10.5px] text-muted-foreground">{m.id} · {m.occupation}</div>
                             </div>
                           </button>
@@ -125,7 +127,7 @@ function TalentsPage() {
               </Field>
 
               {/* Tag matrix */}
-              <Field label="TALENT TAGS">
+              <Field label={t("tl.talentTags").toUpperCase()}>
                 <div className="flex flex-wrap gap-1.5">
                   {giftCatalog.map((g) => {
                     const on = pickedGifts.includes(g);
@@ -149,32 +151,32 @@ function TalentsPage() {
               </Field>
 
               {/* Evidence */}
-              <Field label="EVIDENCE LOG">
+              <Field label={t("tl.evidenceLog").toUpperCase()}>
                 <div className="rounded-md border border-border bg-background focus-within:border-amber focus-within:ring-2 focus-within:ring-amber/30">
                   <textarea
                     value={evidence}
                     onChange={(e) => setEvidence(e.target.value)}
                     rows={6}
-                    placeholder="Provide explicit narrative evidence detailing why this individual possesses these spiritual talents…"
+                    placeholder={t("tl.evidencePlaceholder")}
                     className="w-full resize-none rounded-md bg-transparent p-3 text-[12.5px] outline-none placeholder:italic placeholder:text-muted-foreground"
                   />
                   <div className="mono flex items-center justify-between border-t border-border px-3 py-1.5 text-[10px] uppercase tracking-wider">
-                    <span className="text-muted-foreground">Markdown supported · safely escaped</span>
+                    <span className="text-muted-foreground">{t("tl.markdownNote")}</span>
                     <span className={evidence.length >= 50 ? "text-emerald-600" : "text-ochre"}>
-                      {evidence.length} / 50 chars min
+                      {evidence.length} / 50 {t("tl.charsMin")}
                     </span>
                   </div>
                 </div>
               </Field>
 
               {/* Disclosure */}
-              <Field label="TRANSPARENCY">
+              <Field label={t("tl.transparency").toUpperCase()}>
                 <div className="mono inline-flex rounded-md border border-border bg-background p-0.5 text-[10.5px] font-semibold uppercase tracking-wider">
                   <button onClick={() => setDisclosure("pastoral")} className={`rounded px-3 py-1.5 ${disclosure === "pastoral" ? "bg-foreground text-background" : "text-muted-foreground"}`}>
-                    Pastoral Only · Restricted Edge
+                    {t("tl.pastoralOnly")}
                   </button>
                   <button onClick={() => setDisclosure("member")} className={`rounded px-3 py-1.5 ${disclosure === "member" ? "bg-foreground text-background" : "text-muted-foreground"}`}>
-                    Disclose to Member
+                    {t("tl.discloseMember")}
                   </button>
                 </div>
               </Field>
@@ -189,7 +191,7 @@ function TalentsPage() {
                     : "cursor-not-allowed bg-muted text-muted-foreground",
                 ].join(" ")}
               >
-                {submitting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Persisting…</> : "Submit Recommendation"}
+                {submitting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("tl.persisting")}</> : t("tl.submit")}
               </button>
             </div>
           </div>
@@ -199,13 +201,13 @@ function TalentsPage() {
         <section className="flex min-h-0 flex-col bg-surface">
           <header className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="flex items-center gap-3">
-              <h2 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">PENDING_VERIFICATION_STREAM</h2>
+              <h2 className="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">{t("tl.queue").toUpperCase().replace(/ /g,"_")}</h2>
               <span className="mono inline-flex items-center gap-1 rounded-full border border-amber/40 bg-amber-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
-                {queue.length} Alerts
+                {queue.length} {t("tl.alerts")}
               </span>
             </div>
             <div className="mono flex items-center gap-2 text-[10.5px] uppercase tracking-wider text-muted-foreground">
-              <span>Verified today</span>
+              <span>{t("tl.verifiedToday")}</span>
               <span className="text-foreground">{verified}</span>
             </div>
           </header>
@@ -220,10 +222,10 @@ function TalentsPage() {
                       <ArrowRight className="h-4 w-4 text-muted-foreground" />
                       <Avatar src={to.avatar} alt={to.name} size={28} />
                       <div className="min-w-0 flex-1 text-[12.5px]">
-                        <span className="font-semibold text-foreground">{from.name}</span>
-                        <span className="text-muted-foreground"> recommends </span>
-                        <span className="font-semibold text-foreground">{to.name}</span>
-                        <span className="text-muted-foreground"> for </span>
+                        <span className="font-semibold text-foreground">{lang === "am" ? from.nameAm : from.name}</span>
+                        <span className="text-muted-foreground"> {t("tl.recommends")} </span>
+                        <span className="font-semibold text-foreground">{lang === "am" ? to.nameAm : to.name}</span>
+                        <span className="text-muted-foreground"> {t("tl.for")} </span>
                         {r.gifts.map((g) => (
                           <span key={g} className="mr-1 inline-flex rounded bg-amber-soft px-1.5 py-0.5 text-[10.5px] font-medium text-foreground">{g}</span>
                         ))}
@@ -235,16 +237,16 @@ function TalentsPage() {
                     </blockquote>
                     <div className="mt-3 flex items-center justify-between">
                       <div className="mono flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        <span>visibility: pastoral</span>
+                        <span>{t("tl.visibility")}</span>
                         <span className="text-border">·</span>
-                        <span>conf: 91%</span>
+                        <span>{t("tl.conf")}: 91%</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => decide(r.id, false)} className="mono rounded-md border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground hover:bg-muted">
-                          Reject & Archive
+                          {t("tl.reject")}
                         </button>
                         <button onClick={() => decide(r.id, true)} className="mono inline-flex items-center gap-1.5 rounded-md bg-amber px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground shadow-sm shadow-amber/20 hover:brightness-95">
-                          <Check className="h-3.5 w-3.5" /> Verify & Commit
+                          <Check className="h-3.5 w-3.5" /> {t("tl.verify")}
                         </button>
                       </div>
                     </div>
@@ -253,8 +255,8 @@ function TalentsPage() {
               })}
               {queue.length === 0 && (
                 <div className="grid place-items-center rounded-xl border border-dashed border-border bg-background py-16 text-center">
-                  <div className="mono text-[10.5px] uppercase tracking-wider text-muted-foreground">Stream cleared · 0 pending</div>
-                  <div className="mt-1 text-[13px] font-medium text-foreground">Pastoral queue is at zero. Excellent throughput.</div>
+                  <div className="mono text-[10.5px] uppercase tracking-wider text-muted-foreground">{t("tl.streamClear")}</div>
+                  <div className="mt-1 text-[13px] font-medium text-foreground">{t("tl.streamClearBody")}</div>
                 </div>
               )}
             </div>

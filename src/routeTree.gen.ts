@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TalentsRouteImport } from './routes/talents'
 import { Route as CellsRouteImport } from './routes/cells'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersNewRouteImport } from './routes/members.new'
@@ -25,6 +26,11 @@ const TalentsRoute = TalentsRouteImport.update({
 const CellsRoute = CellsRouteImport.update({
   id: '/cells',
   path: '/cells',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceRoute = AttendanceRouteImport.update({
@@ -56,6 +62,7 @@ const CellsCellIdRoute = CellsCellIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
+  '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
+  '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRoute
+  '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/attendance'
+    | '/auth'
     | '/cells'
     | '/talents'
     | '/cells/$cellId'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/attendance'
+    | '/auth'
     | '/cells'
     | '/talents'
     | '/cells/$cellId'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/attendance'
+    | '/auth'
     | '/cells'
     | '/talents'
     | '/cells/$cellId'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AttendanceRoute: typeof AttendanceRoute
+  AuthRoute: typeof AuthRoute
   CellsRoute: typeof CellsRouteWithChildren
   TalentsRoute: typeof TalentsRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
@@ -134,6 +147,13 @@ declare module '@tanstack/react-router' {
       path: '/cells'
       fullPath: '/cells'
       preLoaderRoute: typeof CellsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/attendance': {
@@ -187,6 +207,7 @@ const CellsRouteWithChildren = CellsRoute._addFileChildren(CellsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AttendanceRoute: AttendanceRoute,
+  AuthRoute: AuthRoute,
   CellsRoute: CellsRouteWithChildren,
   TalentsRoute: TalentsRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
@@ -195,13 +216,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
