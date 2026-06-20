@@ -123,6 +123,14 @@ function AttendancePage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState("2026-05-01");
   const [rangeEnd, setRangeEnd] = useState("2026-06-12");
+  const [submitted, setSubmitted] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("zetseat.att.submitted");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
