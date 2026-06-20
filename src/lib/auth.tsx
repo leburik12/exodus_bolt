@@ -55,12 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(KEY_SESSION);
   };
 
-  const login: Ctx["login"] = async (email, password) => {
+  const login: Ctx["login"] = async (email) => {
+    const cleanEmail = email.trim() || "demo@zetseat.local";
     const users = readUsers();
-    const u = users.find((x) => x.email.toLowerCase() === email.toLowerCase());
-    if (!u) throw new Error("No account found for this email.");
-    if (u.passwordHash !== hash(password)) throw new Error("Invalid password.");
-    const pub: AuthUser = { id: u.id, name: u.name, email: u.email, role: u.role };
+    const u = users.find((x) => x.email.toLowerCase() === cleanEmail.toLowerCase());
+    const pub: AuthUser = u
+      ? { id: u.id, name: u.name, email: u.email, role: u.role }
+      : {
+          id: `DEMO-${Date.now().toString(36).toUpperCase()}`,
+          name: cleanEmail.includes("@") ? cleanEmail.split("@")[0].replace(/[._-]+/g, " ") : "Demo Operator",
+          email: cleanEmail,
+          role: "admin",
+        };
     persist(pub);
     return pub;
   };

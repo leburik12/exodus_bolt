@@ -105,7 +105,7 @@ function AuthPage() {
           </ul>
         </div>
         <div className="mono flex items-center justify-between text-[10px] uppercase tracking-wider text-background/50">
-          <span>Encrypted session · local-only mock auth</span>
+              <span>Demo access · any email and password accepted</span>
           <span>Tigray · Addis Ababa</span>
         </div>
         <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-amber/20 blur-3xl" />
@@ -231,7 +231,7 @@ function AuthPage() {
             </form>
 
             <p className="mono mt-4 text-center text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              {tt("auth.mockNotice", "Mock authentication · local device only")}
+              {tt("auth.mockNotice", "Demo access · enter any email and password")}
             </p>
           </div>
         </div>

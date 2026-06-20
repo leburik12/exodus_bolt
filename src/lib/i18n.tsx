@@ -117,7 +117,7 @@ const DICT: Dict = {
   "auth.backLogin": { en: "Back to sign in", am: "ወደ መግቢያ ተመለስ" },
   "auth.codeIssued": { en: "Reset code (demo)", am: "የመቀየሪያ ኮድ (ሙከራ)" },
   "auth.resetOk": { en: "Password updated. You can sign in now.", am: "የይለፍ ቃል ተቀየረ። አሁን መግባት ይችላሉ።" },
-  "auth.mockNotice": { en: "Mock authentication · local device only", am: "የሙከራ መለያ · በዚህ መሣሪያ ብቻ" },
+  "auth.mockNotice": { en: "Demo access · enter any email and password", am: "የሙከራ መግቢያ · ማንኛውንም ኢሜይል እና የይለፍ ቃል ያስገቡ" },
   // New Member Wizard
   "nm.back": { en: "Back", am: "ተመለስ" },
   "nm.step": { en: "Step", am: "ደረጃ" },
