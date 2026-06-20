@@ -15,6 +15,8 @@ import {
   Search,
   Calendar as CalendarIcon,
   FileText,
+  Save,
+  CheckCircle2,
 } from "lucide-react";
 import { AppShell, Avatar } from "@/components/app-shell";
 import { members as ALL, cellGroupCatalog } from "@/lib/mock-data";
@@ -121,9 +123,32 @@ function AttendancePage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState("2026-05-01");
   const [rangeEnd, setRangeEnd] = useState("2026-06-12");
+  const [submitted, setSubmitted] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("zetseat.att.submitted");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
+  const submittedKey = `${cellNode.id}::${epoch}`;
+  const isSubmitted = !!submitted[submittedKey];
+
+  const handleSubmit = useCallback(() => {
+    setSubmitted((prev) => {
+      const next = { ...prev, [submittedKey]: true };
+      try {
+        localStorage.setItem("zetseat.att.submitted", JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  }, [submittedKey]);
+
   const fullRoster = useMemo(
     () => ALL.filter((_, i) => i % CELL_NODES.length === activeCell),
     [activeCell],
@@ -563,13 +588,29 @@ function AttendancePage() {
                 <Key k="A" l={t("att.absent")} />
                 <Key k="E" l={t("att.excused")} />
               </div>
-              <span>
-                Focus row{" "}
-                <span className="text-foreground font-semibold">
-                  {(focusIdx + 1).toString().padStart(2, "0")}
+              <div className="flex items-center gap-3">
+                {isSubmitted ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {t("att.submitted")}
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-amber bg-amber px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground transition-all hover:bg-ochre hover:border-ochre"
+                  >
+                    <Save className="h-3 w-3" />
+                    {t("att.submit")}
+                  </button>
+                )}
+                <span>
+                  Focus row{" "}
+                  <span className="text-foreground font-semibold">
+                    {(focusIdx + 1).toString().padStart(2, "0")}
+                  </span>
+                  /{roster.length}
                 </span>
-                /{roster.length}
-              </span>
+              </div>
             </div>
           </section>
         </div>
