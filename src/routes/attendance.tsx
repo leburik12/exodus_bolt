@@ -134,6 +134,21 @@ function AttendancePage() {
   const gridRef = useRef<HTMLDivElement>(null);
 
   const cellNode = CELL_NODES[activeCell];
+  const submittedKey = `${cellNode.id}::${epoch}`;
+  const isSubmitted = !!submitted[submittedKey];
+
+  const handleSubmit = useCallback(() => {
+    setSubmitted((prev) => {
+      const next = { ...prev, [submittedKey]: true };
+      try {
+        localStorage.setItem("zetseat.att.submitted", JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  }, [submittedKey]);
+
   const fullRoster = useMemo(
     () => ALL.filter((_, i) => i % CELL_NODES.length === activeCell),
     [activeCell],
