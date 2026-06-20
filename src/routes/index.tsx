@@ -245,13 +245,13 @@ function MembersPage() {
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-border bg-surface px-5 py-2">
             <div className="mono flex items-center gap-3 text-[11px] text-muted-foreground">
-              <span>Displaying <span className="font-semibold text-foreground">{rows.length}</span> of <span className="text-foreground">14,204</span> nodes</span>
+              <span>Displaying <span className="font-semibold text-foreground">{rows.length}</span> of <span className="text-foreground">14,204</span> body-of-Christ records</span>
               <span className="text-border">|</span>
-              <span>Intake velocity Q2</span>
+              <span>“I am the good shepherd; I know my sheep and my sheep know me.”</span>
               <svg width="80" height="16" viewBox="0 0 80 16" className="text-amber">
                 <polyline fill="none" stroke="currentColor" strokeWidth="1.5" points="0,12 10,9 20,11 30,6 40,8 50,4 60,5 70,2 80,3" />
               </svg>
-              <span className="text-foreground">+12.4%</span>
+              <span className="text-foreground">John 10:14</span>
             </div>
             <div className="mono flex items-center gap-2 text-[11px] text-muted-foreground">
               <button className="rounded border border-border px-2 py-0.5 hover:bg-muted">← Prev</button>
