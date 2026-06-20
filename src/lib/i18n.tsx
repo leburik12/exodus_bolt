@@ -32,6 +32,9 @@ const DICT: Dict = {
   "att.openCellStats": { en: "Open Cell Stats", am: "የሕዋስ ስታቲስቲክስ" },
   "att.viewProfile": { en: "Profile", am: "መግለጫ" },
   "att.lead": { en: "Lead", am: "መሪ" },
+  "att.submit": { en: "Submit Attendance", am: "ተገኝነት ይመዝገብ" },
+  "att.submitted": { en: "Attendance Submitted", am: "ተገኝነት ተመዝግቧል" },
+  "att.submitting": { en: "Submitting…", am: "በማመዝገብ ላይ…" },
   // Cell Stats
   "stats.title": { en: "Cell Node Analytics", am: "የሕዋስ ኖድ ትንተና" },
   "stats.quorum": { en: "Active Quorum", am: "ቋሚ ኮረም" },
