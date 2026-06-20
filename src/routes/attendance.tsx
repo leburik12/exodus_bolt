@@ -588,13 +588,29 @@ function AttendancePage() {
                 <Key k="A" l={t("att.absent")} />
                 <Key k="E" l={t("att.excused")} />
               </div>
-              <span>
-                Focus row{" "}
-                <span className="text-foreground font-semibold">
-                  {(focusIdx + 1).toString().padStart(2, "0")}
+              <div className="flex items-center gap-3">
+                {isSubmitted ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {t("att.submitted")}
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-amber bg-amber px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground transition-all hover:bg-ochre hover:border-ochre"
+                  >
+                    <Save className="h-3 w-3" />
+                    {t("att.submit")}
+                  </button>
+                )}
+                <span>
+                  Focus row{" "}
+                  <span className="text-foreground font-semibold">
+                    {(focusIdx + 1).toString().padStart(2, "0")}
+                  </span>
+                  /{roster.length}
                 </span>
-                /{roster.length}
-              </span>
+              </div>
             </div>
           </section>
         </div>
