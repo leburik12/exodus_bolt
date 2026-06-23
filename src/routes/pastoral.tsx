@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Crown, Activity, Users, Calendar, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, XCircle, RotateCw, ArrowRight } from "lucide-react";
+import { Crown, Activity, Users, Calendar, AlertTriangle, CheckCircle2, XCircle, RotateCw, ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { departments, agendas, sessions } from "@/lib/departments-data";
 import { members as ALL_MEMBERS } from "@/lib/mock-data";
