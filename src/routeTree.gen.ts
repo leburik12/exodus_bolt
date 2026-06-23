@@ -10,17 +10,30 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TalentsRouteImport } from './routes/talents'
+import { Route as PastoralRouteImport } from './routes/pastoral'
+import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as CellsRouteImport } from './routes/cells'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersNewRouteImport } from './routes/members.new'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
+import { Route as DepartmentsDeptIdRouteImport } from './routes/departments.$deptId'
 import { Route as CellsCellIdRouteImport } from './routes/cells.$cellId'
 
 const TalentsRoute = TalentsRouteImport.update({
   id: '/talents',
   path: '/talents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PastoralRoute = PastoralRouteImport.update({
+  id: '/pastoral',
+  path: '/pastoral',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentsRoute = DepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CellsRoute = CellsRouteImport.update({
@@ -53,6 +66,11 @@ const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   path: '/members/$memberId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DepartmentsDeptIdRoute = DepartmentsDeptIdRouteImport.update({
+  id: '/$deptId',
+  path: '/$deptId',
+  getParentRoute: () => DepartmentsRoute,
+} as any)
 const CellsCellIdRoute = CellsCellIdRouteImport.update({
   id: '/$cellId',
   path: '/$cellId',
@@ -64,8 +82,11 @@ export interface FileRoutesByFullPath {
   '/attendance': typeof AttendanceRoute
   '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/pastoral': typeof PastoralRoute
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
+  '/departments/$deptId': typeof DepartmentsDeptIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/members/new': typeof MembersNewRoute
 }
@@ -74,8 +95,11 @@ export interface FileRoutesByTo {
   '/attendance': typeof AttendanceRoute
   '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/pastoral': typeof PastoralRoute
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
+  '/departments/$deptId': typeof DepartmentsDeptIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/members/new': typeof MembersNewRoute
 }
@@ -85,8 +109,11 @@ export interface FileRoutesById {
   '/attendance': typeof AttendanceRoute
   '/auth': typeof AuthRoute
   '/cells': typeof CellsRouteWithChildren
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/pastoral': typeof PastoralRoute
   '/talents': typeof TalentsRoute
   '/cells/$cellId': typeof CellsCellIdRoute
+  '/departments/$deptId': typeof DepartmentsDeptIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
   '/members/new': typeof MembersNewRoute
 }
@@ -97,8 +124,11 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/auth'
     | '/cells'
+    | '/departments'
+    | '/pastoral'
     | '/talents'
     | '/cells/$cellId'
+    | '/departments/$deptId'
     | '/members/$memberId'
     | '/members/new'
   fileRoutesByTo: FileRoutesByTo
@@ -107,8 +137,11 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/auth'
     | '/cells'
+    | '/departments'
+    | '/pastoral'
     | '/talents'
     | '/cells/$cellId'
+    | '/departments/$deptId'
     | '/members/$memberId'
     | '/members/new'
   id:
@@ -117,8 +150,11 @@ export interface FileRouteTypes {
     | '/attendance'
     | '/auth'
     | '/cells'
+    | '/departments'
+    | '/pastoral'
     | '/talents'
     | '/cells/$cellId'
+    | '/departments/$deptId'
     | '/members/$memberId'
     | '/members/new'
   fileRoutesById: FileRoutesById
@@ -128,6 +164,8 @@ export interface RootRouteChildren {
   AttendanceRoute: typeof AttendanceRoute
   AuthRoute: typeof AuthRoute
   CellsRoute: typeof CellsRouteWithChildren
+  DepartmentsRoute: typeof DepartmentsRouteWithChildren
+  PastoralRoute: typeof PastoralRoute
   TalentsRoute: typeof TalentsRoute
   MembersMemberIdRoute: typeof MembersMemberIdRoute
   MembersNewRoute: typeof MembersNewRoute
@@ -140,6 +178,20 @@ declare module '@tanstack/react-router' {
       path: '/talents'
       fullPath: '/talents'
       preLoaderRoute: typeof TalentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pastoral': {
+      id: '/pastoral'
+      path: '/pastoral'
+      fullPath: '/pastoral'
+      preLoaderRoute: typeof PastoralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments': {
+      id: '/departments'
+      path: '/departments'
+      fullPath: '/departments'
+      preLoaderRoute: typeof DepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cells': {
@@ -184,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersMemberIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/departments/$deptId': {
+      id: '/departments/$deptId'
+      path: '/$deptId'
+      fullPath: '/departments/$deptId'
+      preLoaderRoute: typeof DepartmentsDeptIdRouteImport
+      parentRoute: typeof DepartmentsRoute
+    }
     '/cells/$cellId': {
       id: '/cells/$cellId'
       path: '/$cellId'
@@ -204,11 +263,25 @@ const CellsRouteChildren: CellsRouteChildren = {
 
 const CellsRouteWithChildren = CellsRoute._addFileChildren(CellsRouteChildren)
 
+interface DepartmentsRouteChildren {
+  DepartmentsDeptIdRoute: typeof DepartmentsDeptIdRoute
+}
+
+const DepartmentsRouteChildren: DepartmentsRouteChildren = {
+  DepartmentsDeptIdRoute: DepartmentsDeptIdRoute,
+}
+
+const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
+  DepartmentsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AttendanceRoute: AttendanceRoute,
   AuthRoute: AuthRoute,
   CellsRoute: CellsRouteWithChildren,
+  DepartmentsRoute: DepartmentsRouteWithChildren,
+  PastoralRoute: PastoralRoute,
   TalentsRoute: TalentsRoute,
   MembersMemberIdRoute: MembersMemberIdRoute,
   MembersNewRoute: MembersNewRoute,
