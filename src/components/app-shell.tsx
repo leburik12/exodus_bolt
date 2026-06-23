@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Users, Network, ScanLine, Sparkles, Command, Languages, LogOut } from "lucide-react";
+import { Users, Network, ScanLine, Sparkles, Command, Languages, LogOut, Building2, Crown } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import logo from "@/assets/zetseat_logo.jpg?url";
 import { useI18n } from "@/lib/i18n";
@@ -20,6 +20,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/cells", label: t("nav.cells"), code: "CEL", icon: Network },
     { to: "/attendance", label: t("nav.attendance"), code: "ATD", icon: ScanLine },
     { to: "/talents", label: t("nav.talents"), code: "TLT", icon: Sparkles },
+    { to: "/departments", label: t("nav.departments"), code: "DPT", icon: Building2 },
+    { to: "/pastoral", label: t("nav.pastoral"), code: "PST", icon: Crown },
   ];
 
   if (!ready || !user) {
