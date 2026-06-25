@@ -296,3 +296,217 @@ export const tasks: Task[] = [
 ];
 
 export const getDepartment = (id: string) => departments.find((x) => x.id === id);
+
+// ============================================================
+// Department workspace extensions
+// Plans · Members · Attendance · Resource Requests · Documents · Activity
+// ============================================================
+
+export type Plan = {
+  id: string; dept: DepartmentId;
+  title: { en: string; am: string };
+  description: { en: string; am: string };
+  goal: { en: string; am: string };
+  startDate: string; endDate: string;
+  priority: "Low" | "Medium" | "High" | "Critical";
+  owner: string;
+  status: "Draft" | "Active" | "Completed" | "Delayed" | "Archived";
+  progress: number; // 0-100
+  objectives: { id: string; title: { en: string; am: string }; progress: number; due: string; owner: string }[];
+};
+
+export type DeptMember = {
+  id: string; dept: DepartmentId; name: string; role: string;
+  skills: string[]; joinDate: string; attendanceRate: number;
+  status: "Active" | "Probation" | "Inactive";
+  initials: string;
+};
+
+export type AttendanceRef =
+  | "Department Session" | "Event" | "Service" | "Cell Group"
+  | "Training" | "Conference" | "Rehearsal" | "Prayer Meeting";
+
+export type AttendanceRecord = {
+  id: string;
+  referenceType: AttendanceRef;
+  referenceId: string;
+  dept: DepartmentId;
+  memberId: string;
+  memberName: string;
+  checkIn: string; checkOut?: string;
+  status: "Present" | "Late" | "Absent" | "Excused";
+  method: "QR Code" | "Face Recognition" | "GPS" | "Manual" | "NFC" | "Self Check-in";
+  notes?: string;
+};
+
+export type ResourceRequest = {
+  id: string; dept: DepartmentId;
+  type: { en: string; am: string };
+  amount: number; reason: { en: string; am: string };
+  status: "Submitted" | "Under Review" | "Approved" | "Rejected";
+  submittedBy: string; submittedAt: string;
+  attachments: number;
+};
+
+export type DeptDocument = {
+  id: string; dept: DepartmentId;
+  title: { en: string; am: string };
+  type: "PDF" | "Image" | "Video" | "Sheet" | "Doc";
+  size: string;
+  uploadedBy: string; uploadedAt: string;
+};
+
+export type ActivityEntry = {
+  id: string; dept: DepartmentId;
+  at: string; actor: string;
+  action: { en: string; am: string };
+  kind: "create" | "update" | "approve" | "attendance" | "task" | "agenda" | "member";
+};
+
+// Deterministic mock generators keyed by department id
+const _seed = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return () => {
+    h = (h * 9301 + 49297) % 233280;
+    return h / 233280;
+  };
+};
+
+const _names = [
+  ["Selamawit B.", "SB"], ["Henok T.", "HT"], ["Mekdes A.", "MA"], ["Yonas M.", "YM"],
+  ["Tigist H.", "TH"], ["Abel K.", "AK"], ["Liya W.", "LW"], ["Bereket T.", "BT"],
+  ["Eden A.", "EA"], ["Caleb Y.", "CY"], ["Mahder Y.", "MY"], ["Rahel T.", "RT"],
+  ["Kalkidan S.", "KS"], ["Mikiyas D.", "MD"], ["Hellen T.", "HE"], ["Robel A.", "RA"],
+];
+
+const _skillsPool = ["Leadership", "Music", "Tech", "Teaching", "Counseling", "Logistics", "Design", "Writing", "Driving", "Hospitality", "Translation", "Mentoring"];
+
+export const getDeptMembers = (dept: DepartmentId): DeptMember[] => {
+  const rand = _seed(dept + "members");
+  const count = 12;
+  return Array.from({ length: count }, (_, i) => {
+    const [name, init] = _names[i % _names.length];
+    const skills = Array.from({ length: 2 + Math.floor(rand() * 2) }, () => _skillsPool[Math.floor(rand() * _skillsPool.length)]);
+    return {
+      id: `${dept.toUpperCase().slice(0, 3)}-M${1000 + i}`,
+      dept, name, initials: init,
+      role: i === 0 ? "Lead" : i === 1 ? "Assistant" : i === 2 ? "Secretary" : "Member",
+      skills: Array.from(new Set(skills)),
+      joinDate: `2024-${String(1 + (i % 11)).padStart(2, "0")}-${String(1 + (i % 27)).padStart(2, "0")}`,
+      attendanceRate: 60 + Math.floor(rand() * 38),
+      status: i % 7 === 0 ? "Probation" : i % 11 === 0 ? "Inactive" : "Active",
+    };
+  });
+};
+
+export const getDeptPlans = (dept: DepartmentId): Plan[] => {
+  const rand = _seed(dept + "plans");
+  const tpls: { en: string; am: string }[] = [
+    { en: "Q1 Operational Plan", am: "የ1ኛ ሩብ አመት እቅድ" },
+    { en: "Quarterly Outreach Plan", am: "የሩብ አመት የውጪ እንቅስቃሴ" },
+    { en: "Annual Discipleship Plan", am: "ዓመታዊ የደቀመዝሙር እቅድ" },
+  ];
+  return tpls.map((t, i) => ({
+    id: `${dept.toUpperCase().slice(0, 3)}-P${100 + i}`,
+    dept,
+    title: t,
+    description: { en: "Coordinated execution plan with milestones and accountability.", am: "ከደረጃዎች ጋር የተቀናጀ የማስፈጸሚያ እቅድ።" },
+    goal: { en: "Achieve measurable kingdom impact.", am: "የሚለካ የመንግሥት ተጽዕኖ ማግኘት።" },
+    startDate: `2025-${String(1 + i * 3).padStart(2, "0")}-01`,
+    endDate: `2025-${String(3 + i * 3).padStart(2, "0")}-28`,
+    priority: (["High", "Medium", "Critical"] as const)[i % 3],
+    owner: _names[i % _names.length][0],
+    status: (["Active", "Active", "Draft"] as const)[i],
+    progress: 20 + Math.floor(rand() * 70),
+    objectives: Array.from({ length: 3 }, (_, j) => ({
+      id: `${dept}-P${100 + i}-O${j + 1}`,
+      title: {
+        en: ["Recruit & onboard team", "Launch flagship initiative", "Measure & report KPIs"][j],
+        am: ["ቡድኑን መመልመል", "ዋና ተግባር ማስጀመር", "ጠቋሚዎችን መለካት"][j],
+      },
+      progress: Math.floor(rand() * 100),
+      due: `2025-${String(2 + i * 3 + j).padStart(2, "0")}-15`,
+      owner: _names[(i + j) % _names.length][0],
+    })),
+  }));
+};
+
+export const getDeptAttendance = (dept: DepartmentId): AttendanceRecord[] => {
+  const rand = _seed(dept + "att");
+  const refs: AttendanceRef[] = ["Department Session", "Rehearsal", "Prayer Meeting", "Training"];
+  const statuses = ["Present", "Present", "Present", "Late", "Excused", "Absent"] as const;
+  const methods = ["QR Code", "Face Recognition", "Manual", "Self Check-in", "NFC"] as const;
+  const members = getDeptMembers(dept);
+  return Array.from({ length: 10 }, (_, i) => ({
+    id: `${dept.toUpperCase().slice(0, 3)}-A${5000 + i}`,
+    referenceType: refs[i % refs.length],
+    referenceId: `REF-${9000 + Math.floor(rand() * 200)}`,
+    dept,
+    memberId: members[i % members.length].id,
+    memberName: members[i % members.length].name,
+    checkIn: `2025-11-${String(10 + (i % 12)).padStart(2, "0")} ${String(17 + (i % 4)).padStart(2, "0")}:${i % 2 === 0 ? "02" : "47"}`,
+    status: statuses[i % statuses.length],
+    method: methods[i % methods.length],
+  }));
+};
+
+export const getDeptResourceRequests = (dept: DepartmentId): ResourceRequest[] => {
+  const tpls: { en: string; am: string }[] = [
+    { en: "Equipment", am: "መሣሪያ" },
+    { en: "Materials", am: "ቁሳቁስ" },
+    { en: "Transport", am: "መጓጓዣ" },
+    { en: "Venue Booking", am: "የቦታ መያዣ" },
+  ];
+  return tpls.map((t, i) => ({
+    id: `${dept.toUpperCase().slice(0, 3)}-R${300 + i}`,
+    dept, type: t,
+    amount: (i + 1) * 12500,
+    reason: { en: "Support upcoming session and outreach logistics.", am: "ቀጣይ ስብሰባና አገልግሎትን ለመደገፍ።" },
+    status: (["Submitted", "Under Review", "Approved", "Rejected"] as const)[i],
+    submittedBy: _names[i % _names.length][0],
+    submittedAt: `2025-11-${String(8 + i * 2).padStart(2, "0")}`,
+    attachments: i,
+  }));
+};
+
+export const getDeptDocuments = (dept: DepartmentId): DeptDocument[] => {
+  const tpls: { en: string; am: string; type: DeptDocument["type"] }[] = [
+    { en: "Meeting Minutes — November", am: "የስብሰባ ቃለ ጉባኤ — ኖቬምበር", type: "PDF" },
+    { en: "Training Slide Deck", am: "የስልጠና ስላይድ", type: "Doc" },
+    { en: "Session Photos", am: "የስብሰባ ፎቶዎች", type: "Image" },
+    { en: "Strategy Whitepaper", am: "የስትራቴጂ ሰነድ", type: "PDF" },
+    { en: "Sermon Reference Sheet", am: "የስብከት ማመሳከሪያ", type: "Sheet" },
+    { en: "Event Highlights Reel", am: "የዝግጅት ቪዲዮ", type: "Video" },
+  ];
+  return tpls.map((t, i) => ({
+    id: `${dept.toUpperCase().slice(0, 3)}-D${800 + i}`,
+    dept,
+    title: { en: t.en, am: t.am },
+    type: t.type,
+    size: `${(0.4 + i * 1.7).toFixed(1)} MB`,
+    uploadedBy: _names[i % _names.length][0],
+    uploadedAt: `2025-11-${String(2 + i * 3).padStart(2, "0")}`,
+  }));
+};
+
+export const getDeptActivity = (dept: DepartmentId): ActivityEntry[] => {
+  const acts: { en: string; am: string; kind: ActivityEntry["kind"] }[] = [
+    { en: "Session created · Sunday Set Rehearsal", am: "ስብሰባ ተፈጥሯል · የእሁድ ልምምድ", kind: "create" },
+    { en: "New member onboarded", am: "አዲስ አባል ተቀላቅሏል", kind: "member" },
+    { en: "Agenda submitted for pastoral review", am: "አጀንዳ ለፓስተር ቀርቧል", kind: "agenda" },
+    { en: "Attendance recorded · 24 present, 3 absent", am: "ተገኝነት ተመዝግቧል · 24 ተገኝቷል፣ 3 አልተገኘም", kind: "attendance" },
+    { en: "Task marked complete", am: "ተግባር ተጠናቋል", kind: "task" },
+    { en: "Plan progress updated to 64%", am: "የእቅድ እድገት 64% ደርሷል", kind: "update" },
+    { en: "Resource request approved", am: "የመሣሪያ ጥያቄ ጸድቋል", kind: "approve" },
+    { en: "Document uploaded · Meeting minutes", am: "ሰነድ ተጨምሯል · ቃለ ጉባኤ", kind: "create" },
+  ];
+  return acts.map((a, i) => ({
+    id: `${dept.toUpperCase().slice(0, 3)}-AC${600 + i}`,
+    dept,
+    at: `2025-11-${String(22 - i).padStart(2, "0")} ${String(8 + (i % 10)).padStart(2, "0")}:${i % 2 === 0 ? "12" : "47"}`,
+    actor: _names[i % _names.length][0],
+    action: { en: a.en, am: a.am },
+    kind: a.kind,
+  }));
+};
